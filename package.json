@@ -1,6 +1,6 @@
 {
     "name": "samtsc",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "author": "Nikody Keating",
     "license": "MIT",
     "publisher": "mytaptrack",
@@ -17,5 +17,12 @@
         "js-yaml": "^4.0.0",
         "moment": "^2.29.1",
         "zlib": "^1.0.5"
-    }
+    },
+    "keywords": [
+        "AWS",
+        "SAM",
+        "Framework",
+        "typescript",
+        "deployment"
+    ]
 }
