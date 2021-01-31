@@ -16,11 +16,11 @@ This project attempts to find a bash.exe to use with your system either in the C
 To install **samtsc** run the following command in your project.
 
 ```!bash
-npm i **samtsc**
+npm i samtsc
 ```
 
 # Running **samtsc**
-To run **samtsc** use the following command
+To run samtsc use the following command
 
 ### Global Installation
 ```!bash
