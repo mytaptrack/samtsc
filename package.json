@@ -1,0 +1,21 @@
+{
+    "name": "samtsc",
+    "version": "1.0.2",
+    "author": "Nikody Keating",
+    "license": "MIT",
+    "publisher": "mytaptrack",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/mytaptrack/samtsc"
+    },
+    "bin": {
+        "samtsc": "src/index.js"
+    },
+    "dependencies": {
+        "aws-sdk": "^2.834.0",
+        "cloudformation-js-yaml-schema": "^0.4.2",
+        "js-yaml": "^4.0.0",
+        "moment": "^2.29.1",
+        "zlib": "^1.0.5"
+    }
+}
