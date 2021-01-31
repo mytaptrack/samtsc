@@ -242,42 +242,53 @@ class SAMFunction extends SAMCompiledDirectory {
         this.eventObject = this;
         this.name = name;
         this.layers = properties.Layers;
-        this.functionName = (properties.FunctionName || `${stackname}-${name}`).trim();
+
+        if(properties.FunctionName) {
+            if(typeof properties.FunctionName == 'string') {
+                this.functionName = properties.FunctionName.trim()
+            }
+        }
         this.deploy = this.deployFunction;
     }
 
-    deployFunction(filePath) {
-        console.log('samtsc: Packaging function', this.name);
-        const zipFile = `${tempDir}/${this.functionName}.zip`;
-        
-        if(filePath == 'package.json' || !fs.existsSync(`${buildRoot}/${this.path}/node_modules`)) {
-            const content = JSON.parse(fs.readFileSync(path.resolve(this.path, 'package.json')));
-            if(content.dependencies && Object.keys(content.dependencies)) {
-                console.log('samtsc: Updating dependencies');
-                execOnlyShowErrors('npm i --only=prod', { cwd: `${buildRoot}/${this.path}`})        
-            }
-        }
-
-        console.log('samtsc: packaging up function');
-        execOnlyShowErrors(`bash -c "zip -r ${zipFile} ${buildRoot}/${this.path}"`);
-        const zipContents = fs.readFileSync(zipFile);
-        const self = this;
-        console.log('samtsc: Deploying function', this.name);
-        cf.listStackResources({
-            StackName: samconfig.stack_name
-        }).promise()
-        .then((result) => {
-            const resource = result.StackResourceSummaries.find(x => x.LogicalResourceId == self.name);
+    async deployFunction(filePath) {
+        try {
+            console.log('samtsc: Packaging function', this.name);
+            const zipFile = `${tempDir}/${this.functionName}.zip`;
             
-            return lambda.updateFunctionCode({
-                FunctionName: resource.PhysicalResourceId,
+            if(filePath == 'package.json' || !fs.existsSync(`${buildRoot}/${this.path}/node_modules`)) {
+                const content = JSON.parse(fs.readFileSync(path.resolve(this.path, 'package.json')));
+                if(content.dependencies && Object.keys(content.dependencies)) {
+                    console.log('samtsc: Updating dependencies');
+                    execOnlyShowErrors('npm i --only=prod', { cwd: `${buildRoot}/${this.path}`})        
+                }
+            }
+
+            console.log('samtsc: packaging up function');
+            execOnlyShowErrors(`bash -c "zip -r ${zipFile} ${buildRoot}/${this.path}"`);
+            const zipContents = fs.readFileSync(zipFile);
+            const self = this;
+            console.log('samtsc: Deploying function', this.name);
+            if(!this.functionName) {
+                const result = await cf.listStackResources({
+                    StackName: samconfig.stack_name
+                }).promise();
+                const resource = result.StackResourceSummaries.find(x => x.LogicalResourceId == self.name);
+                if(!resource) {
+                    console.log('samtsc: Could not find function name');
+                    throw new Error('No function name found');
+                }
+                this.functionName = resource.PhysicalResourceId;
+            }
+            await lambda.updateFunctionCode({
+                FunctionName: this.functionName,
                 ZipFile: zipContents
             }).promise();
-        }).then(() => {
+
             console.log('samtsc: Function deployment complete', this.name);
-        }).catch((err) => {
+        } catch (err) {
             console.log('samtsc: Function deployment FAILED', err);
-        });
+        }
     }
 }
 
@@ -379,6 +390,8 @@ class SAMTemplate {
                     }
                 });
             }
+
+            this.events.emit('template-update', this);
         }
 
         fs.writeFileSync(`${buildRoot}/${this.path}`, yaml.dump(template, { schema: cfSchema.CLOUDFORMATION_SCHEMA}));
@@ -426,13 +439,19 @@ class SAMFramework {
         });
 
         if(samconfig.skip_init_deploy != 'true') {
-            console.log('samtsc: Building SAM deployment');
-            execSync('sam build', { cwd: buildRoot, stdio: 'inherit' });
-            console.log('samtsc: Completed building SAM deployment');
-            execSync('sam deploy --no-fail-on-empty-changeset --no-confirm-changeset', { cwd: buildRoot, stdio: 'inherit' });
+            this.templateUpdated();
         }
 
+        const self = this;
         this.events.on('layer-change', (source) => { self.deployChange(source) });
+        this.events.on('template-update', (source) => { self.templateUpdated(); } )
+    }
+
+    templateUpdated() {
+        console.log('samtsc: Building SAM deployment');
+        execSync('sam build', { cwd: buildRoot, stdio: 'inherit' });
+        console.log('samtsc: Completed building SAM deployment');
+        execSync('sam deploy --no-fail-on-empty-changeset --no-confirm-changeset', { cwd: buildRoot, stdio: 'inherit' });
     }
 
     deployChange(source, skipDeploy) {
