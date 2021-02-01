@@ -202,32 +202,52 @@ class SAMLayerLib extends SAMCompiledDirectory {
 class SAMLayer {
     constructor(name, properties, stackname, events) {
         this.name = name;
+        this.events = events;
         this.path = properties.ContentUri;
         this.layerName = properties.LayerName || `${stackname}-${name}`;
 
         console.log(`samtsc: Identified Serverless Layer: ${this.path}`);
         
-        this.pck = JSON.parse(fs.readFileSync(`${this.path}/package.json`).toString());
+        const self = this;
+        this.handleFolderEvent('nodejs/package.json');
+        this.watchHandler = fs.watch(this.path, { recursive: true }, (event, filePath) => { self.handleFolderEvent(filePath); });
+    }
+
+    handleFolderEvent(filePath) {
+        if(filePath != 'nodejs/package.json') {
+            return;
+        }
+        const packPath = `${this.path}/${filePath}`;
+        if(!fs.existsSync(packPath)) {
+            console.log('samtsc: nodejs/package.json does not exist');
+            return;
+        }
+        this.pck = JSON.parse(fs.readFileSync(packPath).toString());
 
         const self = this;
-        this.events = events;
         this.libs = Object.values(this.pck.dependencies).filter(d => {
             if(!d.startsWith('file:')) {
                 return false;
             }
-            const subpath = path.resolve(this.path, d.slice(5));
+            const subpath = path.resolve(this.path + '/nodejs', d.slice(5));
             return subpath.startsWith(process.cwd());
         }).map(d => {
-            const fullPath = path.resolve(this.path, d.slice(5));
+            const fullPath = path.resolve(this.path + '/nodejs', d.slice(5));
             const subpath = path.relative(process.cwd(), fullPath);
             return new SAMLayerLib(subpath, self, self.events);
         });
 
-        this.watchHandler = fs.watch(this.path + '/package.json', { recursive: true }, (event, filePath) => { self.handleFolderEvent(filePath); });
-    }
+        console.log('samtsc: constructing build directory');
+        const nodejsPath = `${buildRoot}/${this.path}/nodejs`;
+        if(fs.existsSync(nodejsPath)) {
+            execOnlyShowErrors(`bash -c "mkdir -p ${nodejsPath}"`);
+        }
+        fs.copyFileSync(packPath, nodejsPath + '/package.json');
 
-    handleFolderEvent(path) {
-        console.log('samtsc: file change ', path);
+        console.log('samtsc: installing dependencies');
+        execSync('npm i --only=prod', { cwd: nodejsPath, stdio: 'inherit' });
+        
+        console.log('samtsc: file change ', filePath);
         this.events.emit('layer-change', this);
     }
 
@@ -390,11 +410,10 @@ class SAMTemplate {
                     }
                 });
             }
-
-            this.events.emit('template-update', this);
         }
 
         fs.writeFileSync(`${buildRoot}/${this.path}`, yaml.dump(template, { schema: cfSchema.CLOUDFORMATION_SCHEMA}));
+        this.events.emit('template-update', this);
     }
 }
 
@@ -416,11 +435,13 @@ class SAMFramework {
         await this.template.reload();
         this.template.layers.forEach(f => {
             try {
-                console.log('samtsc: Building', f.path);
-                f.libs.forEach(l => {
-                    console.log('samtsc: Building', l.path);
-                    l.build();
-                });
+                if(f.libs) {
+                    console.log('samtsc: Building', f.path);
+                    f.libs.forEach(l => {
+                        console.log('samtsc: Building', l.path);
+                        l.build();
+                    });
+                }
             } catch (err) {
                 console.log('samtsc: could not install or compile', f.path);
                 console.log(err);
@@ -443,7 +464,7 @@ class SAMFramework {
         }
 
         const self = this;
-        this.events.on('layer-change', (source) => { self.deployChange(source) });
+        this.events.on('layer-change', (source) => { self.templateUpdated(source) });
         this.events.on('template-update', (source) => { self.templateUpdated(); } )
     }
 
@@ -455,10 +476,6 @@ class SAMFramework {
     }
 
     deployChange(source, skipDeploy) {
-        if(this.mode == 'publish') {
-            // TODO: Make sure to stop debug mode
-        }
-
         try {
             console.log('samtsc: Building SAM Resource', source.name);
             execOnlyShowErrors(`sam build ${source.name}`, { cwd: this.buildRoot });
@@ -470,34 +487,6 @@ class SAMFramework {
                 execOnlyShowErrors(`sam deploy`, { cwd: this.buildRoot });
             }
             console.log('samtsc: SAM Build Complete')
-        } catch (err) {
-            return;
-        }
-    }
-
-    layerChange(source) {
-        if(!folderUpdated(source.path)) {
-            return;
-        }
-        console.log('samtsc: File Changed');
-        if(this.mode == 'publish') {
-            // TODO: Make sure to stop debug mode
-        }
-        
-        console.log('samtsc: Building package.json');
-        buildPackageJson(source.path);
-
-        try {
-            console.log('samtsc: Installing production dependencies');
-            execOnlyShowErrors(`npm i --only=prod -p ${this.buildRoot}/${source.path}`);
-
-            console.log('samtsc: Building functions: ', functions.length);
-            execOnlyShowErrors(`sam build ${source.name}`, { cwd: this.buildRoot });
-            
-            if(this.mode == 'publish') {
-                console.log('samtsc: Deploying');
-                execOnlyShowErrors(`sam deploy`, { cwd: this.buildRoot });
-            }
         } catch (err) {
             return;
         }

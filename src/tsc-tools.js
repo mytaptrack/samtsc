@@ -53,8 +53,11 @@ function execOnlyShowErrors(command, options) {
         execSync(command, { stdio: 'pipe', ...options });
     } catch (err) {
         console.log('samtsc: exec error');
-        console.log(err)
-        console.log(err.stdout.toString());
+        if(err.stdout) {
+            console.log(err.stdout.toString());
+        } else {
+            console.log(err);
+        }
         throw new Error('Command failed');
     }
 }
