@@ -154,41 +154,45 @@ class SAMCompiledDirectory {
             return;
         }
 
-        filePath && console.log('samtsc: File changed ', filePath);
+        try {
+            filePath && console.log('samtsc: File changed ', filePath);
 
-        if((!filePath && !fs.existsSync(this.path + '/node_modules')) || (filePath && filePath.indexOf('package.json') >= 0)) {
-            this.installDependencies();
-        }
-
-        if(this.tsconfigDir) {
-            console.log('samtsc: building path ', this.path);
-            if(this.outDir) {
-                const localOutDir = path.resolve(this.tsconfigDir, this.outDir);
-                const outDir = path.resolve(process.cwd(), `${buildRoot}/${this.tsconfigDir}/${this.outDir}`);
-                if(fs.existsSync(localOutDir)) {
-                    execOnlyShowErrors(`bash -c "rm -R ${localOutDir}"`, { cwd: this.path })
-                }
-                execOnlyShowErrors(`bash -c "mkdir -p ${outDir}"`, { cwd: this.path })
-                execOnlyShowErrors(`npx tsc -d`, { cwd: this.path });
-                execOnlyShowErrors(`bash -c "cp -R dist ${outDir}"`, { cwd: this.path });
-            } else {
-                const outDir = path.resolve(process.cwd(), `${buildRoot}/${this.tsconfigDir}/${this.outDir}`);
-                // if(fs.existsSync(outDir)) {
-                //     execOnlyShowErrors(`bash -c "rm -R ${outDir}"`, { cwd: this.path })
-                // }
-                execOnlyShowErrors(`npx tsc -d --outDir ${outDir}`, { cwd: this.path });
+            if((!filePath && !fs.existsSync(this.path + '/node_modules')) || (filePath && filePath.indexOf('package.json') >= 0)) {
+                this.installDependencies();
             }
-            console.log('samtsc: build complete', this.path);
-        }
-        if(!filePath || filePath.indexOf('package.json') >= 0) {
-            buildPackageJson(this.path);
-        }
-        writeCacheFile(this.path);
-        if(this.eventObject) {
-            this.events.emit(this.notificationType, this.eventObject);
-        }
-        if(this.deploy && filePath) {
-            this.deploy(filePath);
+
+            if(this.tsconfigDir) {
+                console.log('samtsc: building path ', this.path);
+                if(this.outDir) {
+                    const localOutDir = path.resolve(this.tsconfigDir, this.outDir);
+                    const outDir = path.resolve(process.cwd(), `${buildRoot}/${this.tsconfigDir}/${this.outDir}`);
+                    if(fs.existsSync(localOutDir)) {
+                        execOnlyShowErrors(`bash -c "rm -R ${localOutDir}"`, { cwd: this.path })
+                    }
+                    execOnlyShowErrors(`bash -c "mkdir -p ${outDir}"`, { cwd: this.path })
+                    execOnlyShowErrors(`npx tsc -d`, { cwd: this.path });
+                    execOnlyShowErrors(`bash -c "cp -R dist ${outDir}"`, { cwd: this.path });
+                } else {
+                    const outDir = path.resolve(process.cwd(), `${buildRoot}/${this.tsconfigDir}/${this.outDir}`);
+                    // if(fs.existsSync(outDir)) {
+                    //     execOnlyShowErrors(`bash -c "rm -R ${outDir}"`, { cwd: this.path })
+                    // }
+                    execOnlyShowErrors(`npx tsc -d --outDir ${outDir}`, { cwd: this.path });
+                }
+                console.log('samtsc: build complete', this.path);
+            }
+            if(!filePath || filePath.indexOf('package.json') >= 0) {
+                buildPackageJson(this.path);
+            }
+            writeCacheFile(this.path);
+            if(this.eventObject) {
+                this.events.emit(this.notificationType, this.eventObject);
+            }
+            if(this.deploy && filePath) {
+                this.deploy(filePath);
+            }
+        } catch (err) {
+            
         }
     }
 }
@@ -274,7 +278,7 @@ class SAMFunction extends SAMCompiledDirectory {
     async deployFunction(filePath) {
         try {
             console.log('samtsc: Packaging function', this.name);
-            const zipFile = `${tempDir}/${this.functionName}.zip`;
+            const zipFile = path.resolve(`${tempDir}/${this.functionName}.zip`);
             
             if(filePath == 'package.json' || !fs.existsSync(`${buildRoot}/${this.path}/node_modules`)) {
                 const content = JSON.parse(fs.readFileSync(path.resolve(this.path, 'package.json')));
@@ -285,7 +289,8 @@ class SAMFunction extends SAMCompiledDirectory {
             }
 
             console.log('samtsc: packaging up function');
-            execOnlyShowErrors(`bash -c "zip -r ${zipFile} ${buildRoot}/${this.path}"`);
+            console.log(`${buildRoot}/${this.path}`);
+            execOnlyShowErrors(`bash -c "zip -r ${zipFile} ."`, { cwd: `${buildRoot}/${this.path}`});
             const zipContents = fs.readFileSync(zipFile);
             const self = this;
             console.log('samtsc: Deploying function', this.name);
