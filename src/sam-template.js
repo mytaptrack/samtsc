@@ -144,6 +144,12 @@ class SAMCompiledDirectory {
         execOnlyShowErrors(`npm i`, { cwd: this.path });
     }
 
+    buildIfNotPresent() {
+        if(!fs.existsSync(this.outDir)) {
+            this.build();
+        }
+    }
+
     build(filePath) {
         if(filePath && this.outDir && (filePath.startsWith(this.outDir) || filePath.indexOf('node_modules') >= 0)) {
             return;
@@ -151,6 +157,11 @@ class SAMCompiledDirectory {
 
         if(!folderUpdated(this.path)) {
             console.log('samtsc: No build needed');
+            // TODO: Figure out if this scenario is a second call of the same compile or a separate function
+            // needing to be deployed
+            // if(this.deploy && filePath) {
+            //     this.deploy(filePath);
+            // }
             return;
         }
 
@@ -241,9 +252,11 @@ class SAMLayer {
             return new SAMLayerLib(subpath, self, self.events);
         });
 
+        this.libs.forEach(x => x.buildIfNotPresent());
+
         console.log('samtsc: constructing build directory');
         const nodejsPath = `${buildRoot}/${this.path}/nodejs`;
-        if(fs.existsSync(nodejsPath)) {
+        if(!fs.existsSync(nodejsPath)) {
             execOnlyShowErrors(`bash -c "mkdir -p ${nodejsPath}"`);
         }
         fs.copyFileSync(packPath, nodejsPath + '/package.json');
