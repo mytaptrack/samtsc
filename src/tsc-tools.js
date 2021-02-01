@@ -11,6 +11,11 @@ function getFileSmash(path) {
 }
 
 function getLastModified(path) {
+    const pathlStat = fs.lstatSync(path);
+    if(!pathlStat.isDirectory()) {
+        return pathlStat.mtime.getTime();
+    }
+
     const files = fs.readdirSync(path);
     const dates = files.map(x => {
         if(x == 'dist' || x == 'node_modules') {
@@ -42,9 +47,11 @@ function folderUpdated(path) {
     return result != pathHashes[path];
 }
 
-function writeCacheFile(path) {
+function writeCacheFile(path, memoryOnly) {
     pathHashes[path] = moment(getLastModified(path)).toString();
-    fs.writeFileSync(getFileSmash(path), pathHashes[path]);
+    if(!memoryOnly) {
+        fs.writeFileSync(getFileSmash(path), pathHashes[path]);
+    }
 }
 
 function execOnlyShowErrors(command, options) {

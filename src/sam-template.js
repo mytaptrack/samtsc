@@ -7,6 +7,7 @@ const { folderUpdated, writeCacheFile, execOnlyShowErrors } = require('./tsc-too
 const path = require('path');
 const cfSchema = require('cloudformation-js-yaml-schema');
 const aws = require('aws-sdk');
+const archiver = require('archiver');
 
 const tempDir = "./.build/tmp";
 execOnlyShowErrors(`bash -c "mkdir -p ${tempDir}"`);
@@ -74,6 +75,28 @@ const cf = new aws.CloudFormation({ region: samconfig.region });
 const ssm = new aws.SSM({ region: samconfig.region });
 
 let buildRoot;
+
+function archiveDirectory(destFile, sourceDirectory) {
+    if(fs.existsSync(destFile)) {
+        fs.unlinkSync(destFile);
+    }
+
+    const output = fs.createWriteStream(destFile);
+    const archive = archiver('zip');
+
+    return new Promise((resolve, reject) => {
+        output.on('close', () => {
+            resolve();
+        });
+        archive.on('error', (err) => {
+            reject(err);
+        });
+
+        archive.pipe(output);
+        archive.directory(sourceDirectory, false);
+        archive.finalize();
+    });
+}
 
 function buildPackageJson(source) {
     console.log('samtsc: Building package.json', source);
@@ -146,17 +169,17 @@ class SAMCompiledDirectory {
 
     buildIfNotPresent() {
         if(!fs.existsSync(this.outDir)) {
-            this.build();
+            this.build(undefined, true);
         }
     }
 
-    build(filePath) {
+    build(filePath, skipDeploy) {
         if(filePath && this.outDir && (filePath.startsWith(this.outDir) || filePath.indexOf('node_modules') >= 0)) {
             return;
         }
 
         if(!folderUpdated(this.path)) {
-            console.log('samtsc: No build needed');
+            // console.log('samtsc: No build needed');
             // TODO: Figure out if this scenario is a second call of the same compile or a separate function
             // needing to be deployed
             // if(this.deploy && filePath) {
@@ -188,7 +211,10 @@ class SAMCompiledDirectory {
                     // if(fs.existsSync(outDir)) {
                     //     execOnlyShowErrors(`bash -c "rm -R ${outDir}"`, { cwd: this.path })
                     // }
-                    execOnlyShowErrors(`npx tsc -d --outDir ${outDir}`, { cwd: this.path });
+
+                    const transpileOnly = samconfig.transpile_only == 'true'? '--transpile-only' : '';
+
+                    execOnlyShowErrors(`npx tsc -d --outDir ${outDir}` + transpileOnly, { cwd: this.path });
                 }
                 console.log('samtsc: build complete', this.path);
             }
@@ -196,11 +222,13 @@ class SAMCompiledDirectory {
                 buildPackageJson(this.path);
             }
             writeCacheFile(this.path);
-            if(this.eventObject) {
-                this.events.emit(this.notificationType, this.eventObject);
-            }
-            if(this.deploy && filePath) {
-                this.deploy(filePath);
+            if(!skipDeploy) {
+                if(this.eventObject) {
+                    this.events.emit(this.notificationType, this.eventObject);
+                }
+                if(this.deploy && filePath) {
+                    this.deploy(filePath);
+                }
             }
         } catch (err) {
             
@@ -291,19 +319,20 @@ class SAMFunction extends SAMCompiledDirectory {
     async deployFunction(filePath) {
         try {
             console.log('samtsc: Packaging function', this.name);
-            const zipFile = path.resolve(`${tempDir}/${this.functionName}.zip`);
-            
-            if(filePath == 'package.json' || !fs.existsSync(`${buildRoot}/${this.path}/node_modules`)) {
+            const zipFile = path.resolve(`${tempDir}/${this.functionName || this.name}.zip`);
+            const buildDir = `${buildRoot}/${this.path}`;
+            if(filePath == 'package.json' || !fs.existsSync(`${buildDir}/node_modules`)) {
                 const content = JSON.parse(fs.readFileSync(path.resolve(this.path, 'package.json')));
                 if(content.dependencies && Object.keys(content.dependencies)) {
                     console.log('samtsc: Updating dependencies');
-                    execOnlyShowErrors('npm i --only=prod', { cwd: `${buildRoot}/${this.path}`})        
+                    execOnlyShowErrors('npm i --only=prod', { cwd: `${buildDir}`})        
                 }
             }
 
             console.log('samtsc: packaging up function');
-            console.log(`${buildRoot}/${this.path}`);
-            execOnlyShowErrors(`bash -c "zip -r ${zipFile} ."`, { cwd: `${buildRoot}/${this.path}`});
+            console.log(`${buildDir}`);
+            
+            await archiveDirectory(zipFile, `${buildDir}`);
             const zipContents = fs.readFileSync(zipFile);
             const self = this;
             console.log('samtsc: Deploying function', this.name);
@@ -349,6 +378,9 @@ class SAMTemplate {
     }
 
     async reload() {
+        if(!folderUpdated(this.path)) {
+            return;
+        }
         console.log('samtsc: Loading Template', this.path);
         if(!fs.existsSync('samconfig.toml')) {
             throw new Error('No samconfig.toml found for default deployment configurations');
@@ -430,8 +462,11 @@ class SAMTemplate {
             }
         }
 
-        fs.writeFileSync(`${buildRoot}/${this.path}`, yaml.dump(template, { schema: cfSchema.CLOUDFORMATION_SCHEMA}));
+        const buildPath = `${buildRoot}/${this.path}`;
+        fs.unlinkSync(buildPath);
+        fs.writeFileSync(buildPath, yaml.dump(template, { schema: cfSchema.CLOUDFORMATION_SCHEMA}));
         this.events.emit('template-update', this);
+        writeCacheFile(this.path, true);
     }
 }
 
@@ -457,7 +492,7 @@ class SAMFramework {
                     console.log('samtsc: Building', f.path);
                     f.libs.forEach(l => {
                         console.log('samtsc: Building', l.path);
-                        l.build();
+                        l.build(undefined, true);
                     });
                 }
             } catch (err) {
@@ -470,7 +505,7 @@ class SAMFramework {
             try {
                 console.log('samtsc: Building', f.path);
                 execOnlyShowErrors('npm i', { cwd: f.path }, { });
-                f.build();
+                f.build(undefined, true);
             } catch (err) {
                 console.log('samtsc: could not install or compile ', f.path);
                 console.log(err);
@@ -489,7 +524,7 @@ class SAMFramework {
     templateUpdated() {
         console.log('samtsc: Building SAM deployment');
         execSync('sam build', { cwd: buildRoot, stdio: 'inherit' });
-        console.log('samtsc: Completed building SAM deployment');
+        console.log('samtsc: Completed building SAM deployment, deploying with SAM');
         execSync('sam deploy --no-fail-on-empty-changeset --no-confirm-changeset', { cwd: buildRoot, stdio: 'inherit' });
     }
 
