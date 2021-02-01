@@ -195,6 +195,8 @@ class SAMCompiledDirectory {
                 this.installDependencies();
             }
 
+            let compileFlags = this.isLibrary? '-d' : '';
+
             if(this.tsconfigDir) {
                 console.log('samtsc: building path ', this.path);
                 if(this.outDir) {
@@ -204,7 +206,7 @@ class SAMCompiledDirectory {
                         execOnlyShowErrors(`bash -c "rm -R ${localOutDir}"`, { cwd: this.path })
                     }
                     execOnlyShowErrors(`bash -c "mkdir -p ${outDir}"`, { cwd: this.path })
-                    execOnlyShowErrors(`npx tsc -d`, { cwd: this.path });
+                    execOnlyShowErrors(`npx tsc ${compileFlags}`, { cwd: this.path });
                     execOnlyShowErrors(`bash -c "cp -R dist ${outDir}"`, { cwd: this.path });
                 } else {
                     const outDir = path.resolve(process.cwd(), `${buildRoot}/${this.tsconfigDir}/${this.outDir}`);
@@ -214,7 +216,7 @@ class SAMCompiledDirectory {
 
                     const transpileOnly = samconfig.transpile_only == 'true'? '--transpile-only' : '';
 
-                    execOnlyShowErrors(`npx tsc -d --outDir ${outDir}` + transpileOnly, { cwd: this.path });
+                    execOnlyShowErrors(`npx tsc ${compileFlags} --outDir ${outDir}` + transpileOnly, { cwd: this.path });
                 }
                 console.log('samtsc: build complete', this.path);
             }
@@ -239,25 +241,31 @@ class SAMCompiledDirectory {
 class SAMLayerLib extends SAMCompiledDirectory {
     constructor(dirPath, parent, events) {
         super(dirPath, parent, events, 'layer-change');
+        this.isLibrary = true;
     }
 }
 
 class SAMLayer {
-    constructor(name, properties, stackname, events) {
+    constructor(name, properties, metadata, stackname, events) {
         this.name = name;
         this.events = events;
         this.path = properties.ContentUri;
         this.layerName = properties.LayerName || `${stackname}-${name}`;
+        this.packageFolder = 'nodejs/';
+        if(metadata && metadata.BuildMethod && metadata.BuildMethod.startsWith('nodejs')) {
+            this.packageFolder = '';
+        }
+        this.packagePath = this.packageFolder + 'package.json';
 
         console.log(`samtsc: Identified Serverless Layer: ${this.path}`);
         
         const self = this;
-        this.handleFolderEvent('nodejs/package.json');
+        this.handleFolderEvent(this.packagePath);
         this.watchHandler = fs.watch(this.path, { recursive: true }, (event, filePath) => { self.handleFolderEvent(filePath); });
     }
 
     handleFolderEvent(filePath) {
-        if(filePath != 'nodejs/package.json') {
+        if(filePath != this.packagePath) {
             return;
         }
         const packPath = `${this.path}/${filePath}`;
@@ -272,22 +280,24 @@ class SAMLayer {
             if(!d.startsWith('file:')) {
                 return false;
             }
-            const subpath = path.resolve(this.path + '/nodejs', d.slice(5));
+            const subpath = path.resolve(`${this.path}/${this.packageFolder}`, d.slice(5));
             return subpath.startsWith(process.cwd());
         }).map(d => {
-            const fullPath = path.resolve(this.path + '/nodejs', d.slice(5));
+            console.log(d.slice(5));
+            const fullPath = path.resolve(`${this.path}/${this.packageFolder}`, d.slice(5));
             const subpath = path.relative(process.cwd(), fullPath);
+            console.log(subpath);
             return new SAMLayerLib(subpath, self, self.events);
         });
 
         this.libs.forEach(x => x.buildIfNotPresent());
 
         console.log('samtsc: constructing build directory');
-        const nodejsPath = `${buildRoot}/${this.path}/nodejs`;
+        const nodejsPath = `${buildRoot}/${this.path}/${this.packageFolder}`;
         if(!fs.existsSync(nodejsPath)) {
             execOnlyShowErrors(`bash -c "mkdir -p ${nodejsPath}"`);
         }
-        fs.copyFileSync(packPath, nodejsPath + '/package.json');
+        fs.copyFileSync(packPath, nodejsPath + 'package.json');
 
         console.log('samtsc: installing dependencies');
         execSync('npm i --only=prod', { cwd: nodejsPath, stdio: 'inherit' });
@@ -423,7 +433,7 @@ class SAMTemplate {
         this.layers = layerKeys
             .map(key => {
                 const resource = template.Resources[key];
-                return new SAMLayer(key, resource.Properties, samconfig.stack_name, self.events);
+                return new SAMLayer(key, resource.Properties, resource.Metadata, samconfig.stack_name, self.events);
             });
 
         this.functions = Object.keys(template.Resources)
