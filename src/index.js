@@ -58,7 +58,7 @@ try {
 
     framework.load()
     .then(() => {
-        if(flags.deploy_only != 'true') {
+        if(flags.deploy_only != 'true' && flags.build_only != 'true') {
             console.log('samtsc: setup complete, waiting for modifications');
         } else {
             process.exit(0);

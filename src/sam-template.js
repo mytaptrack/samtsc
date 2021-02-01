@@ -535,7 +535,9 @@ class SAMFramework {
         console.log('samtsc: Building SAM deployment');
         execSync('sam build', { cwd: buildRoot, stdio: 'inherit' });
         console.log('samtsc: Completed building SAM deployment, deploying with SAM');
-        execSync('sam deploy --no-fail-on-empty-changeset --no-confirm-changeset', { cwd: buildRoot, stdio: 'inherit' });
+        if (samconfig.build_only != 'true') {
+            execSync('sam deploy --no-fail-on-empty-changeset --no-confirm-changeset', { cwd: buildRoot, stdio: 'inherit' });
+        }
     }
 
     deployChange(source, skipDeploy) {
