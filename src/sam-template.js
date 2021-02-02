@@ -8,6 +8,7 @@ const path = require('path');
 const cfSchema = require('cloudformation-js-yaml-schema');
 const aws = require('aws-sdk');
 const archiver = require('archiver');
+const rimraf = require('rimraf');
 
 const tempDir = "./.build/tmp";
 mkdir(tempDir);
@@ -230,13 +231,13 @@ class SAMCompiledDirectory {
                     const localOutDir = path.resolve(this.tsconfigDir, this.outDir);
                     const outDir = path.resolve(process.cwd(), `${buildRoot}/${this.tsconfigDir}`, this.outDir);
                     if(fs.existsSync(localOutDir)) {
-                        fs.rmdirSync(localOutDir, { recursive: true, force: true });
+                        rimraf(localOutDir);
                     }
                     console.log('samtsc: Compiling tsc', compileFlags, this.path);
                     execOnlyShowErrors(`npx tsc ${compileFlags}`, { cwd: this.path });
                     console.log('samtsc: Copying output', localOutDir, outDir);
                     if(fs.existsSync(outDir)) {
-                        fs.rmdirSync(outDir, { recursive: true, force: true });
+                        rimraf(outDir);
                     }
                     copyFolder(localOutDir, outDir);
                 } else {

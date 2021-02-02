@@ -18,6 +18,7 @@
         "fs-extra": "^9.1.0",
         "js-yaml": "^4.0.0",
         "moment": "^2.29.1",
+        "rimraf": "^3.0.2",
         "zlib": "^1.0.5"
     },
     "keywords": [
