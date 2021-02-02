@@ -1,10 +1,17 @@
-const { exec, execSync } = require('child_process');
+const { execSync } = require('child_process');
 const fs = require('fs');
 const moment = require('moment');
 const pathHashes = {};
 
+function mkdir(folderPath) {
+    if(!fs.existsSync(folderPath)) {
+        fs.mkdirSync(folderPath, { recursive: true, force: true });
+    }
+}
+module.exports.mkdir = mkdir;
+
 const hashRoot = '.build/hash';
-execSync(`bash -c "mkdir -p ${hashRoot}"`);
+mkdir(hashRoot);
 
 function getFileSmash(path) {
     return  hashRoot + '/' + path.replace(/^\.\//, '').replace(/(\\|\/)/g, '-');
