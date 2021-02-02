@@ -13,6 +13,23 @@ const tempDir = "./.build/tmp";
 execOnlyShowErrors(`bash -c "mkdir -p ${tempDir}"`);
 let buildFlags = {};
 
+let stackeryConfig;
+if(process.env.stackery_config) {
+    stackeryConfig = JSON.parse(JSON.parse("\"" + process.env.stackery_config + "\""));
+    if(stackeryConfig.awsProfile) {
+        let awsFilePath;
+        if(!fs.existsSync('~/.aws')) {
+            if(fs.existsSync(`/mnt/c/Users/${process.env.USER}/.aws`)) { // Windows wcl
+                awsFilePath = `/mnt/c/Users/${process.env.USER}/.aws/credentials`;
+            } else if(fs.existsSync(`/c/Users/${process.env.USER}/.aws`)) { // Gitbash
+                awsFilePath = `/c/Users/${process.env.USER}/.aws/credentials`;
+            }
+        }
+        var credentials = new aws.SharedIniFileCredentials({profile: stackeryConfig.awsProfile, filename: awsFilePath });
+        aws.config.credentials = credentials;
+    }
+}
+
 class SAMConfig {
     constructor() {
         this.load();
@@ -55,6 +72,14 @@ class SAMConfig {
             this[left] = right.slice(firstIndex + 1, lastIndex);
             console.log('toml:', left, this[left]);
         });
+
+        if(stackeryConfig) {
+            this.base_stack = stackeryConfig.stackName;
+            this.environment = stackeryConfig.environmentName;
+            this.region = stackeryConfig.region;
+            this.s3_bucket = stackeryConfig.s3BucketName;
+            this.stack_name = stackeryConfig.cloudFormationStackName;
+        }
 
         if(!this.stack_name) {
             if(this.base_stack && this.environment) {
@@ -533,7 +558,7 @@ class SAMFramework {
 
     templateUpdated() {
         console.log('samtsc: Building SAM deployment');
-        execSync('sam build', { cwd: buildRoot, stdio: 'inherit' });
+        execSync(`sam build`, { cwd: buildRoot, stdio: 'inherit' });
         console.log('samtsc: Completed building SAM deployment, deploying with SAM');
         if (samconfig.build_only != 'true') {
             execSync('sam deploy --no-fail-on-empty-changeset --no-confirm-changeset', { cwd: buildRoot, stdio: 'inherit' });
