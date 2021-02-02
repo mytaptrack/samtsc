@@ -1,9 +1,9 @@
 console.log('samtsc: Loading SAM Framework Tools');
 const { exec, execSync } = require('child_process');
 const { EventEmitter } = require('events');
-const fs = require('fs');
+const fs = require('fs-extra');
 const yaml = require('js-yaml');
-const { folderUpdated, writeCacheFile, execOnlyShowErrors, mkdir } = require('./tsc-tools');
+const { folderUpdated, writeCacheFile, execOnlyShowErrors, mkdir, copyFolder } = require('./tsc-tools');
 const path = require('path');
 const cfSchema = require('cloudformation-js-yaml-schema');
 const aws = require('aws-sdk');
@@ -228,20 +228,19 @@ class SAMCompiledDirectory {
                 console.log('samtsc: building path ', this.path);
                 if(this.outDir) {
                     const localOutDir = path.resolve(this.tsconfigDir, this.outDir);
-                    const outDir = path.resolve(process.cwd(), `${buildRoot}/${this.tsconfigDir}`);
+                    const outDir = path.resolve(process.cwd(), `${buildRoot}/${this.tsconfigDir}`, this.outDir);
                     if(fs.existsSync(localOutDir)) {
                         fs.rmdirSync(localOutDir, { recursive: true, force: true });
                     }
-
-                    mkdir(outDir);
-                    console.log('Compiling tsc', compileFlags);
+                    console.log('samtsc: Compiling tsc', compileFlags, this.path);
                     execOnlyShowErrors(`npx tsc ${compileFlags}`, { cwd: this.path });
-                    execOnlyShowErrors(`bash -c "cp -R ${this.outDir || '.'} ${outDir}"`, { cwd: this.path });
+                    console.log('samtsc: Copying output', localOutDir, outDir);
+                    if(fs.existsSync(outDir)) {
+                        fs.rmdirSync(outDir, { recursive: true, force: true });
+                    }
+                    copyFolder(localOutDir, outDir);
                 } else {
                     const outDir = path.resolve(process.cwd(), `${buildRoot}/${this.tsconfigDir}/${this.outDir}`);
-                    // if(fs.existsSync(outDir)) {
-                    //     execOnlyShowErrors(`bash -c "rm -R ${outDir}"`, { cwd: this.path })
-                    // }
                     const transpileOnly = samconfig.transpile_only == 'true'? '--transpile-only' : '';
 
                     execOnlyShowErrors(`npx tsc ${compileFlags} --outDir ${outDir}` + transpileOnly, { cwd: this.path });

@@ -21,22 +21,6 @@ try {
         return;
     }
 
-    //
-    // Identify if we already have access to bash
-    //
-    try {
-        execSync('bash --version');
-    } catch(err) {
-        if(fs.existsSync('c:\\Windows\\System\\bash.exe')) {
-            process.env.PATH = 'c:\\Windows\\System;' + process.env.PATH
-        } else if(fs.existsSync('c:\\Program Files\\Git\\bin\\bash.exe')) {
-            process.env.PATH = 'c:\\Program Files\\Git\\bin\\bash.exe' + process.env.PATH
-        }
-        console.error('Error: cannot invoke bash');
-        exit(1);
-        return;
-    }
-
     console.log('Checking Build Directories');
     const buildDir = './.build/root';
     if(!fs.existsSync(buildDir)) {
