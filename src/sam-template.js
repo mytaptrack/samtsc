@@ -226,13 +226,13 @@ class SAMCompiledDirectory {
                 console.log('samtsc: building path ', this.path);
                 if(this.outDir) {
                     const localOutDir = path.resolve(this.tsconfigDir, this.outDir);
-                    const outDir = path.resolve(process.cwd(), `${buildRoot}/${this.tsconfigDir}/${this.outDir}`);
+                    const outDir = path.resolve(process.cwd(), `${buildRoot}/${this.tsconfigDir}`);
                     if(fs.existsSync(localOutDir)) {
                         execOnlyShowErrors(`bash -c "rm -R ${localOutDir}"`, { cwd: this.path })
                     }
                     execOnlyShowErrors(`bash -c "mkdir -p ${outDir}"`, { cwd: this.path })
                     execOnlyShowErrors(`npx tsc ${compileFlags}`, { cwd: this.path });
-                    execOnlyShowErrors(`bash -c "cp -R dist ${outDir}"`, { cwd: this.path });
+                    execOnlyShowErrors(`bash -c "cp -R ${this.outDir} ${outDir}"`, { cwd: this.path });
                 } else {
                     const outDir = path.resolve(process.cwd(), `${buildRoot}/${this.tsconfigDir}/${this.outDir}`);
                     // if(fs.existsSync(outDir)) {
