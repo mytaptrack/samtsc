@@ -232,7 +232,7 @@ class SAMCompiledDirectory {
                     }
                     execOnlyShowErrors(`bash -c "mkdir -p ${outDir}"`, { cwd: this.path })
                     execOnlyShowErrors(`npx tsc ${compileFlags}`, { cwd: this.path });
-                    execOnlyShowErrors(`bash -c "cp -R ${this.outDir} ${outDir}"`, { cwd: this.path });
+                    execOnlyShowErrors(`bash -c "cp -R ${this.outDir || '.'} ${outDir}"`, { cwd: this.path });
                 } else {
                     const outDir = path.resolve(process.cwd(), `${buildRoot}/${this.tsconfigDir}/${this.outDir}`);
                     // if(fs.existsSync(outDir)) {
