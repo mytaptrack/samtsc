@@ -230,13 +230,10 @@ class SAMCompiledDirectory {
                     const localOutDir = path.resolve(this.tsconfigDir, this.outDir);
                     const outDir = path.resolve(process.cwd(), `${buildRoot}/${this.tsconfigDir}`);
                     if(fs.existsSync(localOutDir)) {
-                        console.log('Removing out dir', localOutDir);
                         fs.rmdirSync(localOutDir, { recursive: true, force: true });
                     }
-                    console.log('Making final destination', outDir);
-                    if(!fs.existsSync(outDir)) {
-                        fs.mkdirSync(outDir, { recursive: true })
-                    }
+
+                    mkdir(outDir);
                     console.log('Compiling tsc', compileFlags);
                     execOnlyShowErrors(`npx tsc ${compileFlags}`, { cwd: this.path });
                     execOnlyShowErrors(`bash -c "cp -R ${this.outDir || '.'} ${outDir}"`, { cwd: this.path });
@@ -424,7 +421,6 @@ class SAMTemplate {
         if(!fs.existsSync('samconfig.toml')) {
             throw new Error('No samconfig.toml found for default deployment configurations');
         }
-        console.log(this.path);
         samconfig.save();
 
         const content = fs.readFileSync(this.path);
@@ -454,7 +450,6 @@ class SAMTemplate {
         if(template.Globals && template.Globals.Function && template.Globals.Function.CodeUri) {
             globalUri = template.Globals.Function.CodeUri;
         }
-        console.log('Global Uri', globalUri);
 
         const self = this;
         const layerKeys = Object.keys(template.Resources)
