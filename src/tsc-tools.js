@@ -16,7 +16,6 @@ function copyFolder(sourceDir, outDir) {
     }
 
     const results = fs.readdirSync(sourceDir, { withFileTypes: true });
-    console.log(results);
     for(let f of results) {
         const sourceSub = path.resolve(sourceDir, f.name);
         const destSub = path.resolve(outDir, f.name);

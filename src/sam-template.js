@@ -180,9 +180,32 @@ class SAMCompiledDirectory {
     loadOutDir() {
         if(this.tsconfigDir) {
             console.log('samtsc: Loading tsconfig in', this.tsconfigDir);
-            const tsconfig = JSON.parse(fs.readFileSync(`${this.tsconfigDir}/tsconfig.json`).toString());
-            if(tsconfig && tsconfig.compilerOptions && tsconfig.compilerOptions.outDir) {
-                this.outDir = tsconfig.compilerOptions.outDir;
+            const tsconfigPath = `${this.tsconfigDir}/tsconfig.json`;
+            const tsconfig = JSON.parse(fs.readFileSync(tsconfigPath).toString());
+            if(tsconfig) {
+                if(tsconfig && tsconfig.compilerOptions && tsconfig.compilerOptions.outDir) {
+                    this.outDir = tsconfig.compilerOptions.outDir;
+                }
+
+                if(this.outDir) {
+                    if(!tsconfig.exclude) {
+                        tsconfig.exclude = [];
+                    }
+
+                    let needsSaving = false;
+                    if(!tsconfig.exclude.find(x => x == `${this.outDir}/**/*`)) {
+                        tsconfig.exclude.push(`${this.outDir}/**/*`);
+                        needsSaving = true;
+                    }
+                    if(!tsconfig.exclude.find(x => x == `node_modules/**/*`)) {
+                        tsconfig.exclude.push(`node_modules/**/*`);
+                        needsSaving = true;
+                    }
+
+                    if(needsSaving) {
+                        fs.writeFileSync(tsconfigPath, JSON.stringify(tsconfig, null, 2));
+                    }
+                }
             }
         }
         if(!this.outDir) {
@@ -230,15 +253,11 @@ class SAMCompiledDirectory {
                 if(this.outDir) {
                     const localOutDir = path.resolve(this.tsconfigDir, this.outDir);
                     const outDir = path.resolve(process.cwd(), `${buildRoot}/${this.tsconfigDir}`, this.outDir);
-                    if(fs.existsSync(localOutDir)) {
-                        rimraf(localOutDir);
-                    }
+                    
                     console.log('samtsc: Compiling tsc', compileFlags, this.path);
                     execOnlyShowErrors(`npx tsc ${compileFlags}`, { cwd: this.path });
+                    
                     console.log('samtsc: Copying output', localOutDir, outDir);
-                    if(fs.existsSync(outDir)) {
-                        rimraf(outDir);
-                    }
                     copyFolder(localOutDir, outDir);
                 } else {
                     const outDir = path.resolve(process.cwd(), `${buildRoot}/${this.tsconfigDir}/${this.outDir}`);
