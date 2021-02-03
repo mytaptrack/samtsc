@@ -4,6 +4,7 @@
  */
 const fs = require('fs');
 const path = require('path');
+const archiver = require('archiver');
 
 function mkdir(folderPath) {
     if(!fs.existsSync(folderPath)) {
