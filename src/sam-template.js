@@ -415,9 +415,6 @@ class SAMTemplate {
     }
 
     async reload() {
-        if(!folderUpdated(this.path)) {
-            return;
-        }
         console.log('samtsc: Loading Template', this.path);
         if(!existsSync('samconfig.toml')) {
             throw new Error('No samconfig.toml found for default deployment configurations');
@@ -503,7 +500,6 @@ class SAMTemplate {
         }
         writeFileSync(buildPath, yaml.dump(template, { schema: cfSchema.CLOUDFORMATION_SCHEMA}));
         this.events.emit('template-update', this);
-        writeCacheFile(this.path, true);
     }
 }
 
