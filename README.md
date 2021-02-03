@@ -42,7 +42,8 @@ Any value in the samconfig.toml can be overridden by attaching -- before the var
 | --env-aware | This value leverages the environment to replace "&lt;EnvironmentName&gt;" in the parameter defaults with the environment name. | env_aware = "true" |
 | --parm-layer | This flag configures the system to identify parameters which refer to layers and replaces them to pass layer validation in the SAM framework | parm_layer = "true" |
 | --deploy-only | This flag configures the system to only deploy then exit | deploy_only = "true" |
-| --skip_init_deploy | This flag skips the initial SAM deployment speeding the start time.  The negative aspect is that if there are new resources, they won't be deployed which could cause debugging issues | skip_init_deploy = "true" |
+| --build-only | This flag configures the system to only build then exit | build_only = "true" |
+| --skip-init-deploy | This flag skips the initial SAM deployment speeding the start time.  The negative aspect is that if there are new resources, they won't be deployed which could cause debugging issues | skip_init_deploy = "true" |
 
 # What to expect
 When **samtsc** is first started, it will load your template file and if necessary will attempt to compile your sources to the ".build" directory in your project.  After building the project, **samtsc** will then deploy the full project using the configurations located in the samconfig.toml file.

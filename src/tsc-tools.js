@@ -1,41 +1,11 @@
 const { execSync } = require('child_process');
-const fs = require('fs');
+const fs = require('./file-system');
 const path = require('path');
 const moment = require('moment');
 const pathHashes = {};
 
-function mkdir(folderPath) {
-    if(!fs.existsSync(folderPath)) {
-        fs.mkdirSync(folderPath, { recursive: true, force: true });
-    }
-}
-
-function copyFolder(sourceDir, outDir) {
-    if(!fs.existsSync(outDir)) {
-        fs.mkdirSync(outDir);
-    }
-
-    const results = fs.readdirSync(sourceDir, { withFileTypes: true });
-    for(let f of results) {
-        const sourceSub = path.resolve(sourceDir, f.name);
-        const destSub = path.resolve(outDir, f.name);
-        
-        if(f.isDirectory()) {
-            copyFolder(sourceSub, destSub);
-        } else {
-            if(fs.existsSync(destSub)) {
-                fs.unlinkSync(destSub);
-            }
-            fs.copyFileSync(sourceSub, destSub);
-        }
-    }
-}
-
-module.exports.mkdir = mkdir;
-module.exports.copyFolder = copyFolder;
-
 const hashRoot = '.build/hash';
-mkdir(hashRoot);
+fs.mkdir(hashRoot);
 
 function getFileSmash(path) {
     return  hashRoot + '/' + path.replace(/^\.\//, '').replace(/(\\|\/)/g, '-');

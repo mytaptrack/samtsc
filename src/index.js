@@ -1,9 +1,7 @@
 #!/usr/bin/env node
 console.log('Starting samtsc');
 try {
-
-    const { exec, execSync } = require('child_process');
-    const fs = require('fs');
+    const fs = require('./file-system');
     const { exit, stdin } = require('process');
     const { SAMFramework } = require('./sam-template');
 
@@ -24,7 +22,7 @@ try {
     console.log('Checking Build Directories');
     const buildDir = './.build/root';
     if(!fs.existsSync(buildDir)) {
-        fs.mkdirSync(buildDir);
+        fs.mkdir(buildDir);
     }
 
     const flags = {};
