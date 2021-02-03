@@ -1,21 +1,25 @@
 console.log('samtsc: Loading SAM Framework Tools');
 const { exec, execSync } = require('child_process');
 const { EventEmitter } = require('events');
-const fs = require('fs');
+const fs = require('fs-extra');
 const yaml = require('js-yaml');
-const { folderUpdated, writeCacheFile, execOnlyShowErrors } = require('./tsc-tools');
+const { folderUpdated, writeCacheFile, execOnlyShowErrors, mkdir, copyFolder } = require('./tsc-tools');
 const path = require('path');
 const cfSchema = require('cloudformation-js-yaml-schema');
 const aws = require('aws-sdk');
 const archiver = require('archiver');
+const rimraf = require('rimraf');
 
 const tempDir = "./.build/tmp";
-execOnlyShowErrors(`bash -c "mkdir -p ${tempDir}"`);
+mkdir(tempDir);
+
 let buildFlags = {};
 
 let stackeryConfig;
 if(process.env.stackery_config) {
-    stackeryConfig = JSON.parse(JSON.parse("\"" + process.env.stackery_config + "\""));
+    console.log(process.env);
+    const content = process.env.stackery_config.indexOf('\\"') >= 0? JSON.parse("\"" + process.env.stackery_config + "\"") : process.env.stackery_config;
+    stackeryConfig = JSON.parse(content);
     if(stackeryConfig.awsProfile) {
         let awsFilePath;
         if(!fs.existsSync('~/.aws')) {
@@ -178,9 +182,32 @@ class SAMCompiledDirectory {
     loadOutDir() {
         if(this.tsconfigDir) {
             console.log('samtsc: Loading tsconfig in', this.tsconfigDir);
-            const tsconfig = JSON.parse(fs.readFileSync(`${this.tsconfigDir}/tsconfig.json`).toString());
-            if(tsconfig && tsconfig.compilerOptions && tsconfig.compilerOptions.outDir) {
-                this.outDir = tsconfig.compilerOptions.outDir;
+            const tsconfigPath = `${this.tsconfigDir}/tsconfig.json`;
+            const tsconfig = JSON.parse(fs.readFileSync(tsconfigPath).toString());
+            if(tsconfig) {
+                if(tsconfig && tsconfig.compilerOptions && tsconfig.compilerOptions.outDir) {
+                    this.outDir = tsconfig.compilerOptions.outDir;
+                }
+
+                if(this.outDir) {
+                    if(!tsconfig.exclude) {
+                        tsconfig.exclude = [];
+                    }
+
+                    let needsSaving = false;
+                    if(!tsconfig.exclude.find(x => x == `${this.outDir}/**/*`)) {
+                        tsconfig.exclude.push(`${this.outDir}/**/*`);
+                        needsSaving = true;
+                    }
+                    if(!tsconfig.exclude.find(x => x == `node_modules/**/*`)) {
+                        tsconfig.exclude.push(`node_modules/**/*`);
+                        needsSaving = true;
+                    }
+
+                    if(needsSaving) {
+                        fs.writeFileSync(tsconfigPath, JSON.stringify(tsconfig, null, 2));
+                    }
+                }
             }
         }
         if(!this.outDir) {
@@ -193,7 +220,8 @@ class SAMCompiledDirectory {
     }
 
     buildIfNotPresent() {
-        if(!fs.existsSync(this.outDir)) {
+        const outDir = `${buildRoot}/${this.tsconfigDir}/${this.outDir}`;
+        if(!fs.existsSync(outDir)) {
             this.build(undefined, true);
         }
     }
@@ -226,19 +254,15 @@ class SAMCompiledDirectory {
                 console.log('samtsc: building path ', this.path);
                 if(this.outDir) {
                     const localOutDir = path.resolve(this.tsconfigDir, this.outDir);
-                    const outDir = path.resolve(process.cwd(), `${buildRoot}/${this.tsconfigDir}`);
-                    if(fs.existsSync(localOutDir)) {
-                        execOnlyShowErrors(`bash -c "rm -R ${localOutDir}"`, { cwd: this.path })
-                    }
-                    execOnlyShowErrors(`bash -c "mkdir -p ${outDir}"`, { cwd: this.path })
+                    const outDir = path.resolve(process.cwd(), `${buildRoot}/${this.tsconfigDir}`, this.outDir);
+                    
+                    console.log('samtsc: Compiling tsc', compileFlags, this.path);
                     execOnlyShowErrors(`npx tsc ${compileFlags}`, { cwd: this.path });
-                    execOnlyShowErrors(`bash -c "cp -R ${this.outDir || '.'} ${outDir}"`, { cwd: this.path });
+                    
+                    console.log('samtsc: Copying output', localOutDir, outDir);
+                    copyFolder(localOutDir, outDir);
                 } else {
                     const outDir = path.resolve(process.cwd(), `${buildRoot}/${this.tsconfigDir}/${this.outDir}`);
-                    // if(fs.existsSync(outDir)) {
-                    //     execOnlyShowErrors(`bash -c "rm -R ${outDir}"`, { cwd: this.path })
-                    // }
-
                     const transpileOnly = samconfig.transpile_only == 'true'? '--transpile-only' : '';
 
                     execOnlyShowErrors(`npx tsc ${compileFlags} --outDir ${outDir}` + transpileOnly, { cwd: this.path });
@@ -319,9 +343,7 @@ class SAMLayer {
 
         console.log('samtsc: constructing build directory');
         const nodejsPath = `${buildRoot}/${this.path}/${this.packageFolder}`;
-        if(!fs.existsSync(nodejsPath)) {
-            execOnlyShowErrors(`bash -c "mkdir -p ${nodejsPath}"`);
-        }
+        mkdir(nodejsPath);
         fs.copyFileSync(packPath, nodejsPath + 'package.json');
 
         console.log('samtsc: installing dependencies');
@@ -420,7 +442,6 @@ class SAMTemplate {
         if(!fs.existsSync('samconfig.toml')) {
             throw new Error('No samconfig.toml found for default deployment configurations');
         }
-        console.log(this.path);
         samconfig.save();
 
         const content = fs.readFileSync(this.path);
@@ -450,7 +471,6 @@ class SAMTemplate {
         if(template.Globals && template.Globals.Function && template.Globals.Function.CodeUri) {
             globalUri = template.Globals.Function.CodeUri;
         }
-        console.log('Global Uri', globalUri);
 
         const self = this;
         const layerKeys = Object.keys(template.Resources)
@@ -498,7 +518,9 @@ class SAMTemplate {
         }
 
         const buildPath = `${buildRoot}/${this.path}`;
-        fs.unlinkSync(buildPath);
+        if(fs.existsSync(buildPath)) {
+            fs.unlinkSync(buildPath);
+        }
         fs.writeFileSync(buildPath, yaml.dump(template, { schema: cfSchema.CLOUDFORMATION_SCHEMA}));
         this.events.emit('template-update', this);
         writeCacheFile(this.path, true);
