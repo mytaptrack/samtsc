@@ -18,7 +18,8 @@ let buildFlags = {};
 let stackeryConfig;
 if(process.env.stackery_config) {
     console.log(process.env);
-    stackeryConfig = JSON.parse(JSON.parse("\"" + process.env.stackery_config + "\""));
+    const content = process.env.stackery_config.indexOf('\\"') >= 0? JSON.parse("\"" + process.env.stackery_config + "\"") : process.env.stackery_config;
+    stackeryConfig = JSON.parse(content);
     if(stackeryConfig.awsProfile) {
         let awsFilePath;
         if(!fs.existsSync('~/.aws')) {
