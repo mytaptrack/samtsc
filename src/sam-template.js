@@ -118,7 +118,7 @@ function buildPackageJson(source) {
         });
     }
 
-    writeFileSync(`${buildRoot}/${source}/package.json`, JSON.stringify(pck, '  '));
+    writeFileSync(`${buildRoot}/${source}/package.json`, JSON.stringify(pck, undefined, 2));
     if(pck.dependencies) {
         execOnlyShowErrors('npm i --only=prod', { cwd: `${buildRoot}/${source}`});
     }
@@ -303,6 +303,28 @@ class SAMLayer {
             return;
         }
         this.pck = JSON.parse(readFileSync(packPath).toString());
+        if(!this.pck.dependencies) {
+            this.pck.dependencies = {};
+        }
+
+        if(this.name == samconfig.stack_reference_layer) {
+            console.log('samtsc: Constructing combined dependencies');
+            const rootPck = JSON.parse(readFileSync('package.json'));
+
+            const packs = !rootPck.dependencies? [] : Object.keys(rootPck.dependencies).forEach(k => {
+                let val = rootPck.dependencies[k];
+                if(!val.startsWith('file:')) {
+                    this.pck.dependencies[k] = val;
+                    return;
+                }
+
+                val = val.slice(5);
+                const abPath = path.resolve(val);
+                this.pck.dependencies[k] = 'file:' + path.relative(`${this.path}/${this.packageFolder}`, abPath);
+            });
+
+            console.log('samtsc: Construction complete', JSON.stringify(this.pck, undefined, 2));
+        }
 
         const self = this;
         this.libs = Object.values(this.pck.dependencies).filter(d => {
@@ -324,7 +346,7 @@ class SAMLayer {
         console.log('samtsc: constructing build directory');
         const nodejsPath = `${buildRoot}/${this.path}/${this.packageFolder}`;
         mkdir(nodejsPath);
-        copyFileSync(packPath, nodejsPath + 'package.json');
+        writeFileSync(nodejsPath + 'package.json', JSON.stringify(this.pck, undefined, 2));
 
         console.log('samtsc: installing dependencies');
         execSync('npm i --only=prod', { cwd: nodejsPath, stdio: 'inherit' });
