@@ -8,17 +8,24 @@ const function1Path = 'src/function1';
 const libPath = 'src/library';
 const buildRoot = '.build/root';
 
-const startPath = path.resolve(process.cwd(), sampleProjectRoot);
+const origin = process.cwd();
 
 describe('tsc-tools', () => {
-    process.cwd(sampleProjectRoot);
-
+    let projectRoot;
     beforeEach(() => {
-        process.chdir(startPath);
-        execSync('npm i');
-        fs.rmdirSync('.build/root/src');
-        fs.mkdir(path.resolve(sampleProjectRoot, buildRoot));
+        projectRoot = path.resolve(origin + '/.test/' + new Date().getTime());
+        console.log(projectRoot);
+        fs.mkdir(projectRoot);
+        fs.copyFolder(sampleProjectRoot, projectRoot);
+        
+        process.chdir(projectRoot);
+        execSync('npm i', { stdio: 'inherit' });
+        
+        fs.mkdir(path.resolve(projectRoot, buildRoot));
     });
+    afterEach(() => {
+        process.chdir(origin);
+    })
 
     test('Compile function', () => {
         const fullPath = path.resolve(function1Path);

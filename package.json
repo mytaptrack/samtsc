@@ -12,7 +12,8 @@
         "samtsc": "src/index.js"
     },
     "scripts": {
-        "test": "npx jest"
+        "test": "npx jest",
+        "coveralls": "jest --coverage && cat ./tests/coverage/lcov.info | coveralls"
     },
     "dependencies": {
         "archiver": "^5.2.0",

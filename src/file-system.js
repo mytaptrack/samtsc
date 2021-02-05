@@ -29,10 +29,11 @@ function rmdir(sourceDir) {
             }
         }
     }
+    fs.rmdirSync(sourceDir);
 }
 
-function copyFolder(sourceDir, outDir) {
-    if(!fs.existsSync(outDir)) {
+function copyFolder(sourceDir, outDir, excludeArray = []) {
+    if(!fs.existsSync(outDir) || excludeArray.find(x => sourceDir.endsWith(x))) {
         mkdir(outDir);
     }
 

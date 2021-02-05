@@ -1,13 +1,15 @@
+const { execSync } = require('child_process');
 const { resolve } = require('path');
-const { rmdirSync, existsSync, readFileSync, lstatSync } = require('./file-system');
+const { rmdirSync, existsSync, readFileSync, lstatSync, mkdir, copyFolder } = require('./file-system');
 let sam;
 
 const origin = process.cwd();
-const projectRoot = resolve('samples/stack_layer');
+const targetProject = resolve('samples/stack_layer');
 const buildRoot = '.build/root';
 const function1Path = 'src/function1';
 const function2Path = 'src/function2';
 const libraryPath = 'src/library';
+
 
 describe('sam-template', () => {
     describe('SAMCompiledDirectory', () => {
@@ -17,16 +19,24 @@ describe('sam-template', () => {
         let function1;
         let function2;
         let library;
+        let projectRoot;
         beforeAll(() => {
-            process.chdir(projectRoot);
-            sam = require('./sam-template');
-            sam.setBuildRoot(buildRoot);
         });
 
-        beforeEach(() => {
+        beforeEach(async () => {
+            projectRoot = resolve(origin + '/.test/' + new Date().getTime());
+            console.log(projectRoot);
+            mkdir(projectRoot);
+            copyFolder(targetProject, projectRoot);
+            
+            process.chdir(projectRoot);
+            execSync('npm i', { stdio: 'inherit' });
+            sam = require('./sam-template');
+            sam.setBuildRoot(buildRoot);
+
             events.emit.mockReset();
-            rmdirSync('.build/root/src');
-            rmdirSync('.build/hash');
+            mkdir('.build/hash');
+
             function1 = new sam.SAMCompiledDirectory(function1Path, {}, events, 'test');
             function2 = new sam.SAMCompiledDirectory(function2Path, {}, events, 'test');
             library = new sam.SAMCompiledDirectory(libraryPath, {}, events, 'test');
@@ -36,6 +46,7 @@ describe('sam-template', () => {
             function1.cleanup();
             function2.cleanup();
             library.cleanup();
+            process.chdir(origin);
         });
 
         test('build function 1 no deploy', () => {
@@ -66,7 +77,7 @@ describe('sam-template', () => {
             expect(existsSync(`${library.path}/dist/index.js`)).toBeTruthy();
             expect(existsSync(`${library.path}/dist/index.js.map`)).toBeTruthy();
             expect(existsSync(`${library.path}/package.json`)).toBeTruthy();
-            
+
             // Check build dir
             expect(existsSync(`${buildRoot}/${library.path}/dist/index.js`)).toBeTruthy();
             expect(existsSync(`${buildRoot}/${library.path}/dist/index.js.map`)).toBeTruthy();
