@@ -3,7 +3,7 @@ const { execSync } = require('child_process');
 const { EventEmitter } = require('events');
 const fs = require('fs');
 const yaml = require('js-yaml');
-const { folderUpdated, writeCacheFile, execOnlyShowErrors } = require('./tsc-tools');
+const { folderUpdated, writeCacheFile, execOnlyShowErrors, compileTypescript } = require('./tsc-tools');
 const { mkdir, copyFolder, archiveDirectory, existsSync, writeFileSync, 
     readFileSync, watch, watchFile, copyFileSync, unlinkSync } = require('./file-system');
 const path = require('path');
@@ -104,6 +104,9 @@ const cf = new aws.CloudFormation({ region: samconfig.region });
 const ssm = new aws.SSM({ region: samconfig.region });
 
 let buildRoot;
+module.exports.setBuildRoot = (rootPath) => {
+    buildRoot = rootPath;
+}
 
 function buildPackageJson(source) {
     console.log('samtsc: Building package.json', source);
@@ -226,26 +229,9 @@ class SAMCompiledDirectory {
                 this.installDependencies();
             }
 
-            let compileFlags = this.isLibrary? '-d' : '';
-
             if(this.tsconfigDir) {
                 console.log('samtsc: building path ', this.path);
-                if(this.isLibrary) {
-                    const localOutDir = path.resolve(this.tsconfigDir, this.outDir || '.');
-                    const outDir = path.resolve(process.cwd(), `${buildRoot}/${this.tsconfigDir}`, this.outDir || '.');
-                    
-                    console.log('samtsc: Compiling tsc', compileFlags, this.path);
-                    execOnlyShowErrors(`npx tsc ${compileFlags}`, { cwd: this.path });
-                    
-                    console.log('samtsc: Copying output');
-                    copyFolder(localOutDir, outDir);
-                    console.log('samtsc: Finished copying');
-                } else {
-                    const outDir = path.resolve(process.cwd(), buildRoot, this.tsconfigDir, this.outDir || '.');
-                    const transpileOnly = samconfig.transpile_only == 'true'? '--transpile-only' : '';
-
-                    execOnlyShowErrors(`npx tsc ${compileFlags} --outDir ${outDir}` + transpileOnly, { cwd: this.path });
-                }
+                compileTypescript(this.tsconfigDir, buildRoot, { library: this.isLibrary }, samconfig);
                 console.log('samtsc: build complete', this.path);
             }
             if(!filePath || filePath.indexOf('package.json') >= 0) {
@@ -266,6 +252,7 @@ class SAMCompiledDirectory {
         }
     }
 }
+module.exports.SAMCompiledDirectory = SAMCompiledDirectory;
 
 class SAMLayerLib extends SAMCompiledDirectory {
     constructor(dirPath, parent, events) {

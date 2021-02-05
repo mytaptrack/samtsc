@@ -12,6 +12,25 @@ function mkdir(folderPath) {
     }
 }
 
+function rmdir(sourceDir) {
+    if(!fs.existsSync(sourceDir)) {
+        return;
+    }
+
+    const results = fs.readdirSync(sourceDir, { withFileTypes: true });
+    for(let f of results) {
+        const sourceSub = path.resolve(sourceDir, f.name);
+        
+        if(f.isDirectory()) {
+            rmdir(sourceSub);
+        } else {
+            if(fs.existsSync(sourceSub)) {
+                fs.unlinkSync(sourceSub);
+            }
+        }
+    }
+}
+
 function copyFolder(sourceDir, outDir) {
     if(!fs.existsSync(outDir)) {
         mkdir(outDir);
@@ -69,3 +88,4 @@ module.exports.copyFileSync = fs.copyFileSync;
 module.exports.unlinkSync = fs.unlinkSync;
 module.exports.lstatSync = fs.lstatSync;
 module.exports.readdirSync = fs.readdirSync;
+module.exports.rmdirSync = rmdir;
