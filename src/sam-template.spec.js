@@ -10,6 +10,16 @@ const function1Path = 'src/function1';
 const function2Path = 'src/function2';
 const libraryPath = 'src/library';
 
+const usedValues = [];
+function getUniqueValue() {
+    let retval;
+    let counter = 0;
+    do {
+        retval = new Date().getTime() + counter;
+        counter++;
+    } while(usedValues.find(x => x == retval));
+    return retval;
+}
 
 describe('sam-template', () => {
     describe('SAMCompiledDirectory', () => {
@@ -35,6 +45,13 @@ describe('sam-template', () => {
             sam.setBuildRoot(buildRoot);
 
             events.emit.mockReset();
+            rmdirSync('.build/root/src');
+            rmdirSync('.build/hash');
+            await new Promise((resolve) => {
+                setTimeout(() => {
+                    resolve();
+                }, 100);
+            });
             mkdir('.build/hash');
 
             function1 = new sam.SAMCompiledDirectory(function1Path, {}, events, 'test');

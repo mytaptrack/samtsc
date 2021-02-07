@@ -49,10 +49,11 @@ function folderUpdated(path) {
     return result != pathHashes[path];
 }
 
-function writeCacheFile(path, memoryOnly) {
-    pathHashes[path] = moment(getLastModified(path)).toString();
+function writeCacheFile(sourcePath, memoryOnly) {
+    pathHashes[sourcePath] = moment(getLastModified(sourcePath)).toString();
     if(!memoryOnly) {
-        fs.writeFileSync(getFileSmash(path), pathHashes[path]);
+        const filePath = path.resolve(hashRoot, getFileSmash(sourcePath));
+        fs.writeFileSync(filePath, pathHashes[sourcePath]);
     }
 }
 
