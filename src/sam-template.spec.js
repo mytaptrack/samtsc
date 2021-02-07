@@ -17,9 +17,12 @@ function getRootDir(exp) {
     }
     return resolve(origin, '.test', exp.getState().currentTestName.replace(/\W/g, '-'));
 }
+const events = {
+    emit: jest.fn()
+};
 
-function setupDir(testName) {
-    const projectRoot = getRootDir(testName);
+function setupEnvironment() {
+    const projectRoot = getRootDir(expect.getState().currentTestName);
     if(existsSync(projectRoot)) {
         rmdirSync(projectRoot);
     }
@@ -33,35 +36,48 @@ function setupDir(testName) {
     mkdir('.build/root');
     mkdir('.build/hash');
     execSync('npm i', { stdio: 'inherit' });
+
+    const testRoot = getRootDir(expect);
+    process.chdir(testRoot);
+    samconfig.load({}, '.build/root');
+    const sam = require('./sam-template');
+    sam.setBuildRoot('.build/root');
+
+    return {
+        sam,
+        samconfig
+    };
 }
+
+function setupEnvironmentCompDirs() {
+    const { sam, samconfig } = setupEnvironment();
+
+    events.emit.mockReset();
+    const function1 = new sam.SAMCompiledDirectory(function1Path, {}, events, 'test');
+    const function2 = new sam.SAMCompiledDirectory(function2Path, {}, events, 'test');
+    const library = new sam.SAMCompiledDirectory(libraryPath, {}, events, 'test');
+    library.isLibrary = true;
+
+    return {
+        function1,
+        function2,
+        library,
+        sam,
+        samconfig
+    }
+}
+
 
 describe('sam-template', () => {
     describe('SAMCompiledDirectory', () => {
-        const events = {
-            emit: jest.fn()
-        };
 
         afterAll(() => {
             process.chdir(origin);
         });
 
         test('build function 1 no deploy', () => {
-            setupDir('sam-template-SAMCompiledDirectory-build function 1 no deploy');
-            let function1;
-            let function2;
-            let library;
-            const testRoot = getRootDir(expect);
-            process.chdir(testRoot);
-            samconfig.load({}, '.build/root');
-            const sam = require('./sam-template');
-            sam.setBuildRoot('.build/root');
-        
-            events.emit.mockReset();
-            function1 = new sam.SAMCompiledDirectory(function1Path, {}, events, 'test');
-            function2 = new sam.SAMCompiledDirectory(function2Path, {}, events, 'test');
-            library = new sam.SAMCompiledDirectory(libraryPath, {}, events, 'test');
-            library.isLibrary = true;
-
+            const {function1, function2} = setupEnvironmentCompDirs();
+            
             const projectRoot = getRootDir(expect);
             process.chdir(projectRoot);
             function1.build(null, true);
@@ -76,24 +92,8 @@ describe('sam-template', () => {
         });
 
         test('build function 1 twice', () => {
-            setupDir('sam-template-SAMCompiledDirectory-build function 1 twice');
-            let function1;
-            let function2;
-            let library;
-            const testRoot = getRootDir(expect);
-            process.chdir(testRoot);
-            samconfig.load({}, '.build/root');
-            const sam = require('./sam-template');
-            sam.setBuildRoot('.build/root');
-        
-            events.emit.mockReset();
-            function1 = new sam.SAMCompiledDirectory(function1Path, {}, events, 'test');
-            function2 = new sam.SAMCompiledDirectory(function2Path, {}, events, 'test');
-            library = new sam.SAMCompiledDirectory(libraryPath, {}, events, 'test');
-            library.isLibrary = true;
+            const {function1, function2} = setupEnvironmentCompDirs();
             
-            const projectRoot = getRootDir(expect);;
-            process.chdir(projectRoot);
             function1.build(null, true);
             expect(existsSync(`.build/hash/src-function1`)).toBeTruthy();
             const before = lstatSync(`${buildRoot}/${function1.path}/index.js`);
@@ -103,21 +103,7 @@ describe('sam-template', () => {
         });
 
         test('build library no deploy', () => {
-            setupDir('sam-template-SAMCompiledDirectory-build library no deploy');
-            let function1;
-            let function2;
-            let library;
-            const testRoot = getRootDir(expect);
-            process.chdir(testRoot);
-            samconfig.load({}, '.build/root');
-            const sam = require('./sam-template');
-            sam.setBuildRoot('.build/root');
-        
-            events.emit.mockReset();
-            function1 = new sam.SAMCompiledDirectory(function1Path, {}, events, 'test');
-            function2 = new sam.SAMCompiledDirectory(function2Path, {}, events, 'test');
-            library = new sam.SAMCompiledDirectory(libraryPath, {}, events, 'test');
-            library.isLibrary = true;
+            const { library, function1 } = setupEnvironmentCompDirs();
 
             library.build(null, true);
 
@@ -140,24 +126,16 @@ describe('sam-template', () => {
 
     describe('SAMTemplate', () => {
         
-        let events = new EventEmitter();
+        const events = new EventEmitter();
 
         afterAll(() => {
             process.chdir(origin);
         });
 
         test('Load and build first time', async () => {
-            setupDir('sam-template-SAMTemplate-Load and build first time');
-            const testRoot = getRootDir(expect);
-            process.chdir(testRoot);
-            samconfig.load({}, '.build/root');
-            samconfig.no_deploy = true;
-            const sam = require('./sam-template');
-            sam.setBuildRoot('.build/root');
-
-            const projectRoot = getRootDir(expect);;
-            process.chdir(projectRoot);
+            const { sam } = setupEnvironment();
             const template = new sam.SAMTemplate('template.yml', events);
+
             try {
                 await template.reload();
 
@@ -170,15 +148,7 @@ describe('sam-template', () => {
         });
 
         test('Load twice', async () => {
-            setupDir('sam-template-SAMTemplate-Load twice');
-            const testRoot = getRootDir(expect);
-            process.chdir(testRoot);
-            samconfig.load({}, '.build/root');
-            samconfig.no_deploy = true;
-            const sam = require('./sam-template');
-            sam.setBuildRoot('.build/root');
-            const projectRoot = getRootDir(expect);;
-            process.chdir(projectRoot);
+            const { sam } = setupEnvironment();
 
             const template = new sam.SAMTemplate('template.yml', events);
             try {

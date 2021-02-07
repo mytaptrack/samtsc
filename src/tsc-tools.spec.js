@@ -17,8 +17,8 @@ function getRootDir(exp) {
     return path.resolve(origin, '.test', exp.getState().currentTestName.replace(/\W/g, '-'));
 }
 
-function setupDir(testName) {
-    projectRoot = getRootDir(testName);
+function setupDir() {
+    projectRoot = getRootDir(expect.getState().currentTestName);
     if(fs.existsSync(projectRoot)) {
         fs.rmdirSync(projectRoot);
     }
@@ -31,6 +31,7 @@ function setupDir(testName) {
     
     fs.mkdir(path.resolve(projectRoot, buildRoot));
     process.chdir(origin);
+
 }
 
 describe('tsc-tools', () => {
@@ -41,7 +42,7 @@ describe('tsc-tools', () => {
     });
 
     test('Compile function', () => {
-        setupDir('tsc-tools-Compile function');
+        setupDir();
         const projectRoot = getRootDir(expect);
         process.chdir(projectRoot);
         const fullPath = path.resolve(function1Path);
@@ -53,7 +54,7 @@ describe('tsc-tools', () => {
     });
 
     test('Compile library', () => {
-        setupDir('tsc-tools-Compile library');
+        setupDir();
         const projectRoot = getRootDir(expect);
         process.chdir(projectRoot);
         const fullPath = path.resolve(libPath);
