@@ -146,28 +146,28 @@ describe('sam-template', () => {
             process.chdir(origin);
         });
 
-        test('Load and build first time', async () => {
+        test('Load and build first time', (callback) => {
             const { sam } = setupEnvironment();
             const template = new sam.SAMTemplate('template.yml', events);
 
-            try {
-                await template.reload();
-
+            template.reload()
+            .then(() => {
                 expect(existsSync('.build/hash/src-library')).toBeTruthy();
                 expect(existsSync('.build/hash/src-function1')).toBeTruthy();
                 expect(existsSync('.build/hash/src-function2')).toBeTruthy();
-            } finally {
+                callback();
+            })
+            .finally(() => {
                 template.cleanup();
-            }
+            });
         });
 
-        test('Load twice', async () => {
+        test('Load twice', (callback) => {
             const { sam } = setupEnvironment();
 
             const template = new sam.SAMTemplate('template.yml', events);
-            try {
-                await template.reload();
-
+            await template.reload()
+            .then(() => {
                 expect(existsSync('.build/hash/src-library')).toBeTruthy();
                 expect(existsSync('.build/hash/src-function1')).toBeTruthy();
                 expect(existsSync('.build/hash/src-function2')).toBeTruthy();
@@ -175,8 +175,7 @@ describe('sam-template', () => {
                 const function1Dir = template.compiledDirectories['src/function1'];
                 const function2Dir = template.compiledDirectories['src/function2'];
                 const libDir = template.compiledDirectories['src/library'];
-
-                await new Promise((resolve, reject) => {
+                return new Promise((resolve, reject) => {
                     let eventOccurred = false;
                     events.on('template-update', () => {
                         eventOccurred = true;
@@ -191,12 +190,13 @@ describe('sam-template', () => {
                         }
                     }, 60000);
                 });
-
+            })
+            .then(() => {
                 expect(function1Dir).toBe(template.compiledDirectories['src/function1']);
                 expect(function2Dir).toBe(template.compiledDirectories['src/function2']);
                 expect(libDir).toBe(template.compiledDirectories['src/library']);
 
-                await new Promise((resolve) => {
+                return new Promise((resolve) => {
                     let eventOccurred = false;
                     function1Dir.events.on('build-complete', () => {
                         eventOccurred = true;
@@ -210,11 +210,13 @@ describe('sam-template', () => {
                         }
                     }, 60000);
                 });
-
+            })
+            .then(() => {
                 expect(existsSync('.build/root/src/function1/src')).toBeFalsy();
-            } finally {
+                callback();
+            }).finally(() => {
                 template.cleanup();
-            }
+            });
         });
     })
 });
