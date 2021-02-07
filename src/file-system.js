@@ -85,6 +85,11 @@ function archiveDirectory(destFile, sourceDirectory) {
     });
 }
 
+function touch(filename) {
+    const time = new Date();
+    fs.utimesSync(filename, time, time);
+}
+
 module.exports.mkdir = mkdir;
 module.exports.copyFolder = copyFolder;
 module.exports.archiveDirectory = archiveDirectory;
@@ -99,3 +104,4 @@ module.exports.unlinkSync = fs.unlinkSync;
 module.exports.lstatSync = fs.lstatSync;
 module.exports.readdirSync = fs.readdirSync;
 module.exports.rmdirSync = rmdir;
+module.exports.touch = touch;

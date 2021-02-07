@@ -62,8 +62,9 @@ function findTsConfigDir(dirPath) {
         return null;
     }
 
-    const parts = dirPath.split(/(\\|\/)/g);
-    return findTsConfigDir(parts.slice(0, parts.length - 2).join('/'));
+    const abPath = path.resolve(dirPath, '..');
+    const relPath = path.relative(process.cwd(), abPath);
+    return findTsConfigDir(relPath);
 }
 
 class SAMCompiledDirectory {
@@ -75,7 +76,9 @@ class SAMCompiledDirectory {
         this.loadOutDir();
 
         const self = this;
-        this.watchHandler = watch(dirPath, { recursive: true }, (event, path) => { self.build(path); });
+        this.watchHandler = watch(dirPath, { recursive: true }, (event, path) => {
+            self.build(path); 
+        });
     }
 
     cleanup() {
@@ -253,7 +256,8 @@ class SAMLayer {
             console.log('samtsc: nodejs/package.json does not exist');
             return;
         }
-        this.pck = JSON.parse(readFileSync(this.packagePath).toString());
+        const pckFilePath = path.resolve(pckFolder, this.packagePath);
+        this.pck = JSON.parse(readFileSync(pckFilePath).toString());
         if(!this.pck.dependencies) {
             this.pck.dependencies = {};
         }
@@ -368,6 +372,9 @@ class SAMFunction {
     }
 
     async deployFunction(zipContents) {
+        if(samconfig.no_deploy) {
+            return;
+        }
         try {
             const self = this;
             console.log('samtsc: Deploying function', this.name);
@@ -407,9 +414,14 @@ class SAMTemplate {
         this.events = events;
         const self = this;
 
-        watchFile(path, (curr, prev) => {
+        this.watchHandle = watchFile(path, (curr, prev) => {
             self.reload();
         });
+    }
+
+    cleanup() {
+        this.watchHandle.stop();
+        Object.values(this.compiledDirectories).forEach(x => x.cleanup());
     }
 
     async reload() {
@@ -419,9 +431,9 @@ class SAMTemplate {
         }
         samconfig.save();
 
-        const content = readFileSync(this.path);
+        const content = readFileSync(this.path).toString();
         console.log('File read');
-        const template = yaml.load(content.toString(), {
+        const template = yaml.load(content, {
             schema: cfSchema.CLOUDFORMATION_SCHEMA
         });
 
@@ -438,9 +450,6 @@ class SAMTemplate {
 
         if(this.layers) {
             this.layers.forEach(x => x.cleanup());
-        }
-        if(this.compiledDirectories) {
-            Object.values(this.compiledDirectories).forEach(x => x.cleanup());
         }
 
         let globalUri;
@@ -515,6 +524,13 @@ class SAMTemplate {
         });
 
 
+        Object.values(this.compiledDirectories).forEach(x => {
+            if(!this.functions.find(y => y.path == x.path)) {
+                x.cleanup();
+            }
+        });
+
+
         if(samconfig.parm_layer == 'true') {
             const layerRefs = [];
             if(template.Globals && template.Globals.Function && template.Globals.Function.Layers) {
@@ -553,6 +569,7 @@ class SAMTemplate {
         this.events.emit('template-update', this);
     }
 }
+module.exports.SAMTemplate = SAMTemplate;
 
 class SAMFramework {
     constructor(path, buildRootDir, flags) {

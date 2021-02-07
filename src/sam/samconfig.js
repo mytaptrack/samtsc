@@ -1,4 +1,5 @@
 const { existsSync, readFileSync, writeFileSync } = require('../file-system');
+const { resolve } = require('path');
 
 let stackeryConfig;
 if(process.env.stackery_config) {
@@ -25,7 +26,7 @@ class SAMConfig {
     }
 
     save() {
-        writeFileSync(`${this.buildRoot}/samconfig.toml`,
+        writeFileSync(resolve(this.buildRoot, 'samconfig.toml'),
         [
             'version=0.1',
             '[default.deploy.parameters]',
