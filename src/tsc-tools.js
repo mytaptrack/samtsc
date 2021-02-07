@@ -8,8 +8,9 @@ const hashRoot = '.build/hash';
 fs.mkdir(hashRoot);
 
 function getFileSmash(path) {
-    return  hashRoot + '/' + path.replace(/^\.\//, '').replace(/(\\|\/)/g, '-');
+    return  path.replace(/^\.\//, '').replace(/(\\|\/)/g, '-');
 }
+module.exports.getFileSmash = getFileSmash;
 
 function getLastModified(path) {
     const pathlStat = fs.lstatSync(path);

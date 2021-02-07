@@ -5,6 +5,7 @@
 const fs = require('fs');
 const path = require('path');
 const archiver = require('archiver');
+const { logger } = require('./logger');
 
 function mkdir(folderPath) {
     if(!fs.existsSync(folderPath)) {
@@ -56,22 +57,30 @@ function copyFolder(sourceDir, outDir, excludeArray = []) {
 
 function archiveDirectory(destFile, sourceDirectory) {
     if(fs.existsSync(destFile)) {
+        logger.debug('Deleting dest file', destFile);
         fs.unlinkSync(destFile);
     }
 
+    logger.debug('Creating streams', destFile, sourceDirectory);
     const output = fs.createWriteStream(destFile);
     const archive = archiver('zip');
 
     return new Promise((resolve, reject) => {
+        logger.debug('Setting up event listeners');
         output.on('close', () => {
+            logger.debug('closing file', destFile);
             resolve();
         });
         archive.on('error', (err) => {
+            logger.error(err);
             reject(err);
         });
 
+        logger.debug('Piping zip output');
         archive.pipe(output);
         archive.directory(sourceDirectory, false);
+
+        logger.debug('Finalizing zip file');
         archive.finalize();
     });
 }
