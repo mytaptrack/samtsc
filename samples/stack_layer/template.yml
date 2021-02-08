@@ -1,0 +1,36 @@
+Transform: AWS::Serverless-2016-10-31
+
+Parameters:
+  StackName:
+    Type: String
+    Default: mytaptrack-data-prop
+  EnvironmentTagName:
+    Type: String
+    Default: test
+
+Globals:
+  Function:
+    Layers:
+      - !Ref stackLayer
+
+Resources:
+  stackLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub ${AWS::StackName}-stack-layer
+      ContentUri: src/layer
+    Metadata:
+      BuildMethod: nodejs12.x
+
+  function1:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/function1
+      Handler: index.handler
+  
+  function2:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/function2
+      Handler: index.handler
+      

@@ -1,0 +1,12 @@
+version=0.1
+[default.deploy.parameters]
+base_stack = "sample-stack-layer";
+s3_bucket = "test-bucket"
+s3_prefix = "samtsc/samples/stack_layer"
+region = "us-west-2"
+confirm_changeset = "true"
+capabilities = "CAPABILITY_IAM"
+environment = "test"
+env_aware = "true"
+parm_layer = "true"
+stack_reference_layer = "stackLayer"
