@@ -44,6 +44,9 @@ Any value in the samconfig.toml can be overridden by attaching -- before the var
 | --deploy-only | This flag configures the system to only deploy then exit | deploy_only = "true" |
 | --build-only | This flag configures the system to only build then exit | build_only = "true" |
 | --skip-init-deploy | This flag skips the initial SAM deployment speeding the start time.  The negative aspect is that if there are new resources, they won't be deployed which could cause debugging issues | skip_init_deploy = "true" |
+| --stack_reference_layer stackLayerResourceName | This property leverages the prod dependencies defined in the root package.json to construct the dependencies in the layer.  Installing dependencies at the root also makes those dependencies available for all your lambda functions. | stack_reference_layer = "stackLayerResourceName" |
+
+
 
 # What to expect
 When **samtsc** is first started, it will load your template file and if necessary will attempt to compile your sources to the ".build" directory in your project.  After building the project, **samtsc** will then deploy the full project using the configurations located in the samconfig.toml file.
