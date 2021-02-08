@@ -296,7 +296,12 @@ class SAMLayer {
             return new SAMLayerLib(subpath, self, self.events);
         });
 
-        this.libs.forEach(x => x.buildIfNotPresent());
+        this.libs.forEach(x => {
+            x.buildIfNotPresent()
+            x.events.on('build-complete', () => {
+                this.events.emit('layer-change', this);
+            });
+        });
 
         console.log('samtsc: constructing build directory');
         const nodejsPath = `${buildRoot}/${this.path}/${this.packageFolder}`;
@@ -564,7 +569,31 @@ class SAMTemplate {
         if(existsSync(buildPath)) {
             unlinkSync(buildPath);
         }
+
+        if(samconfig.marker_tag) {
+            const resourceName = `DeploymentMarkerTag${samconfig.marker_tag}`;
+            Object.values(template.Resources).forEach(r => {
+                if(!r.DependsOn) {
+                    r.DependsOn = resourceName;
+                } else if(typeof r.DependsOn == 'string') {
+                    r.DependsOn = [r.DependsOn, resourceName];
+                } else if(Array.isArray(r.DependsOn)) {
+                    r.DependsOn.push(resourceName);
+                }
+            });
+            template.Resources[resourceName] = {
+                Type: 'AWS::CloudFormation::WaitConditionHandle'
+            };
+            if(!template.Outputs) {
+                template.Outputs = {};
+            }
+            template.Outputs['DeploymentHistoryTag'] = {
+                Description: 'Stackery Deployment History Tag',
+                Value: samconfig.marker_tag
+            };
+        }
         console.log('samtsc: Writing file', buildPath)
+        this.parameters = template.Parameters;
         writeFileSync(buildPath, yaml.dump(template, { schema: cfSchema.CLOUDFORMATION_SCHEMA}));
         this.events.emit('template-update', this);
     }
@@ -616,8 +645,21 @@ class SAMFramework {
         console.log('samtsc: Completed building SAM deployment, deploying with SAM');
         if (samconfig.build_only != 'true') {
             let parameters = '--no-fail-on-empty-changeset --no-confirm-changeset';
+            let paramOverrides = [];
             if(samconfig.base_stack) {
-                parameters = `${parameters} --parameter-overrides StackName=${samconfig.base_stack} EnvironmentTagName=${samconfig.environment}`;
+                paramOverrides.push(`StackName=${samconfig.base_stack}`, `EnvironmentTagName=${samconfig.environment}`);
+            }
+            Object.keys(this.template.parameters).forEach(k => {
+                if(k == 'StackName' || k =='EnvironmentTagName') {
+                    return;
+                }
+                const defaultVal = this.template.parameters[k].Default;
+                if(defaultVal) {
+                    paramOverrides.push(`${k}=${defaultVal}`);
+                }
+            });
+            if(paramOverrides) {
+                parameters = `${parameters} --parameter-overrides ${paramOverrides.join(' ')}`;
             }
 
             execSync(`sam deploy ${parameters}`, { cwd: buildRoot, stdio: 'inherit' });
