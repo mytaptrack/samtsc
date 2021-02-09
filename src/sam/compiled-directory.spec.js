@@ -30,7 +30,9 @@ function cleanup(function1, function2, library) {
 }
 
 describe('compiled-directory', () => {
-    
+    afterEach(() => {
+        process.chdir(origin);
+    })
     test('build function 1 no deploy', () => {
         const {function1, function2, library} = setupEnvironmentCompDirs();
         try {
