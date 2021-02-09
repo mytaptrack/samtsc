@@ -2,7 +2,6 @@ const tsc = require('./tsc-tools');
 const path = require('path');
 const fs = require('./file-system');
 const { execSync } = require('child_process');
-const { getUniqueValue } = require('./sam-template.spec');
 
 const sampleProjectRoot = 'samples/stack_layer'
 const function1Path = 'src/function1';

@@ -419,13 +419,15 @@ class SAMTemplate {
         this.events = events;
         const self = this;
 
-        this.watchHandle = watchFile(path, (curr, prev) => {
-            self.reload();
+        this.watchHandle = watch('.', (event, filePath) => {
+            if(this.path == filePath) {
+                self.reload();
+            }
         });
     }
 
     cleanup() {
-        this.watchHandle.stop();
+        this.watchHandle.close();
         Object.values(this.compiledDirectories).forEach(x => x.cleanup());
     }
 
