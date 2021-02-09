@@ -4,10 +4,10 @@ const { origin, setupTestEnvironment, buildRoot } = require('../test-utils');
 const { SAMTemplate } = require('./template');
 
 describe('template', () => {
+    afterEach(() => {
+        process.chdir(origin);
+    });
     describe('SAMTemplate', () => {
-        afterAll(() => {
-            process.chdir(origin);
-        });
         beforeEach(() => {
             setupTestEnvironment();
             samconfig.load({ no_deploy: true }, '.build/root');
