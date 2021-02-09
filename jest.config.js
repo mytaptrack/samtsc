@@ -6,5 +6,6 @@ module.exports = {
         "./src"
     ],
     moduleFileExtensions: ["ts", "tsx", "js", "jsx", "json", "node"],
-    testEnvironment: "node"
+    testEnvironment: "node",
+    runner: 'jest-serial-runner'
 };

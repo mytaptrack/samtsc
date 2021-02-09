@@ -37,7 +37,10 @@ class SAMCompiledDirectory {
 
         const self = this;
         this.watchHandler = watch(dirPath, { recursive: true }, (event, path) => {
-            console.log(path);
+            if(path.startsWith('package.json.')) {
+                return;
+            }
+            console.log('samtsc: File event occurred', path);
             self.build(path); 
         });
     }
@@ -137,7 +140,7 @@ class SAMCompiledDirectory {
             }
             writeCacheFile(this.path);
             this.events.emit('build-complete');
-            
+
             if(!skipDeploy) {
                 if(filePath) {
                     this.package(filePath);
