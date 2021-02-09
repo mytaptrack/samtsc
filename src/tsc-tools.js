@@ -65,6 +65,7 @@ function execOnlyShowErrors(command, options) {
         console.log('samtsc: exec error');
         err.stdout && console.log(err.stdout.toString());
         err.stderr && console.log(err.stderr.toString());
+        console.log('samtsc: Working directory', process.cwd());
         throw new Error('Command failed');
     }
 }
