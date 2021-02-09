@@ -91,6 +91,22 @@ function compileTypescript(sourceFolder, buildRoot, options = {}, samconfig = {}
     console.log('samtsc: build complete', sourceFolder);
 }
 
+function findTsConfigDir(dirPath) {
+    const configPath = dirPath + '/tsconfig.json';
+    if(fs.existsSync(configPath)) {
+        return dirPath;
+    }
+
+    if(dirPath == '') {
+        return null;
+    }
+
+    const abPath = path.resolve(dirPath, '..');
+    const relPath = path.relative(process.cwd(), abPath);
+    return findTsConfigDir(relPath);
+}
+
+module.exports.findTsConfigDir = findTsConfigDir;
 module.exports.folderUpdated = folderUpdated;
 module.exports.writeCacheFile = writeCacheFile;
 module.exports.execOnlyShowErrors = execOnlyShowErrors;
