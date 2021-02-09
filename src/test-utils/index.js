@@ -4,7 +4,8 @@ const { existsSync, mkdir, rmdirSync, copyFolder } = require('../file-system');
 const { logger } = require('../logger');
 logger.loadConfig({});
 
-const origin = process.cwd();
+const origin = process.env.TEST_ORIGIN || process.cwd();
+process.env.TEST_ORIGIN = origin;
 const targetProject = resolve('samples/stack_layer');
 const buildRoot = '.build/root';
 
