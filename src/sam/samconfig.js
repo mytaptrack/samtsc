@@ -3,7 +3,6 @@ const { resolve } = require('path');
 
 let stackeryConfig;
 if(process.env.stackery_config) {
-    console.log(process.env);
     const content = process.env.stackery_config.indexOf('\\"') >= 0? JSON.parse("\"" + process.env.stackery_config + "\"") : process.env.stackery_config;
     stackeryConfig = JSON.parse(content);
     if(stackeryConfig.awsProfile) {
@@ -70,6 +69,27 @@ class SAMConfig {
             this.region = stackeryConfig.region;
             this.s3_bucket = stackeryConfig.s3BucketName;
             this.stack_name = stackeryConfig.cloudFormationStackName;
+
+            if(existsSync(`.stackery/${stackeryConfig.templatePath}`)) {
+                const content = readFileSync(`.stackery/${stackeryConfig.templatePath}`).toString();
+                const yaml = require('js-yaml');
+                const cfSchema = require('cloudformation-js-yaml-schema');
+                
+                try {
+                    const stackeryYaml = yaml.load(content, {
+                        schema: cfSchema.CLOUDFORMATION_SCHEMA
+                    });
+        
+                    if(stackeryYaml && stackeryYaml.Outputs && stackeryYaml.Outputs.DeploymentHistoryTag) {
+                        this.marker_tag = stackeryYaml.Outputs.DeploymentHistoryTag.Value;
+                    } else {
+                        console.log('samtsc: yaml error', content);
+                    }
+                } catch (err) {
+                    console.error(err);
+                    console.log(content);
+                }
+            }
         }
 
         if(!this.stack_name) {
