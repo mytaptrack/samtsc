@@ -47,46 +47,34 @@ class SAMFramework {
     }
 
     templateUpdated() {
-        console.log('samtsc: Building SAM deployment');
-        execSync(`sam build`, { cwd: buildRoot, stdio: 'inherit' });
-        console.log('samtsc: Completed building SAM deployment, deploying with SAM');
-        if (samconfig.build_only != 'true') {
-            let parameters = '--no-fail-on-empty-changeset --no-confirm-changeset';
-            let paramOverrides = [];
-            if(samconfig.base_stack) {
-                paramOverrides.push(`StackName=${samconfig.base_stack}`, `EnvironmentTagName=${samconfig.environment}`);
-            }
-            Object.keys(this.template.parameters).forEach(k => {
-                if(k == 'StackName' || k =='EnvironmentTagName') {
-                    return;
-                }
-                const defaultVal = this.template.parameters[k].Default;
-                if(defaultVal) {
-                    paramOverrides.push(`${k}=${defaultVal}`);
-                }
-            });
-            if(paramOverrides) {
-                parameters = `${parameters} --parameter-overrides ${paramOverrides.join(' ')}`;
-            }
-
-            execSync(`sam deploy ${parameters}`, { cwd: buildRoot, stdio: 'inherit' });
-        }
-    }
-
-    deployChange(source, skipDeploy) {
         try {
-            console.log('samtsc: Building SAM Resource', source.name);
-            execOnlyShowErrors(`sam build ${source.name}`, { cwd: this.buildRoot });
-            console.log('samtsc: Deploying SAM Resource', source.name);
-            execSync(`sam deploy --s3-bucket ${samconfig.s3_bucket} --s3-prefix ${samconfig.s3_prefix} --no-confirm-changeset`, { cwd: this.buildRoot, stdio: 'inherit' });
+            console.log('samtsc: Building SAM deployment');
+            execSync(`sam build`, { cwd: buildRoot, stdio: 'inherit' });
+            console.log('samtsc: Completed building SAM deployment, deploying with SAM');
+            if (samconfig.build_only != 'true') {
+                let parameters = '--no-fail-on-empty-changeset --no-confirm-changeset';
+                let paramOverrides = [];
+                if(samconfig.base_stack) {
+                    paramOverrides.push(`StackName=${samconfig.base_stack}`, `EnvironmentTagName=${samconfig.environment}`);
+                }
+                Object.keys(this.template.parameters).forEach(k => {
+                    if(k == 'StackName' || k =='EnvironmentTagName') {
+                        return;
+                    }
+                    const defaultVal = this.template.parameters[k].Default;
+                    if(defaultVal) {
+                        paramOverrides.push(`${k}=${defaultVal}`);
+                    }
+                });
+                if(paramOverrides) {
+                    parameters = `${parameters} --parameter-overrides ${paramOverrides.join(' ')}`;
+                }
 
-            if(this.mode == 'publish') {
-                console.log('samtsc: Deploying');
-                execOnlyShowErrors(`sam deploy`, { cwd: this.buildRoot });
+                execSync(`sam deploy ${parameters}`, { cwd: buildRoot, stdio: 'inherit' });
+                console.log('samtsc: deploy complete, waiting for file change');
             }
-            console.log('samtsc: SAM Build Complete')
         } catch (err) {
-            return;
+            console.log(err);
         }
     }
 }

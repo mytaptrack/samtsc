@@ -7,6 +7,7 @@ const { EventEmitter } = require('events');
 const { SAMLayer } = require('./layer');
 const { SAMFunction } = require('./function');
 const { SAMCompiledDirectory } = require('./compiled-directory');
+const { writeCacheFile, folderUpdated } = require('../tsc-tools');
 
 function filterRefs(array) {
     if(!array) {
@@ -25,8 +26,9 @@ class SAMTemplate {
         const self = this;
 
         this.watchHandle = watch('.', (event, filePath) => {
-            if(this.path == filePath) {
+            if(this.path == filePath && folderUpdated(this.path)) {
                 self.reload();
+                writeCacheFile(this.path, true);
             }
         });
     }
