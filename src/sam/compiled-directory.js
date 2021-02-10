@@ -95,7 +95,7 @@ class SAMCompiledDirectory {
     installDependencies() {
         console.log('samtsc: installing dependencies', this.path);
         const content = JSON.parse(readFileSync(this.path + '/package.json'));
-        if(content.dependencies && Object.key(content.dependencies).length > 0) {
+        if(content.dependencies && Object.keys(content.dependencies).length > 0) {
             execOnlyShowErrors(`npm i`, { cwd: this.path });
         }
     }
