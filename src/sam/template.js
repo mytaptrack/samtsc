@@ -33,27 +33,30 @@ class SAMTemplate {
     }
 
     fileEvent(filePath) {
+        if(!filePath) {
+            return;
+        }
         if(this.path == filePath && folderUpdated(this.path)) {
             this.reload();
             writeCacheFile(this.path, true);
         }
 
         Object.values(this.compiledDirectories).forEach(d => {
-            if(filePath.startsWith(d.path)) {
-                const subpath = relative(d.path, filePath);
+            const subpath = relative(d.path, filePath);
+            if(!subpath.startsWith('..')) {
                 d.fileEvent(subpath);
             }
         });
         this.layers.forEach(l => {
-            if(filePath.startsWith(l.path)) {
-                const subpath = relative(d.path, filePath);
+            const subpath = relative(l.path, filePath);
+            if(!subpath.startsWith('..')) {
                 l.fileEvent(subpath);
             }
 
             if(l.libs) {
                 l.libs.forEach(d => {
-                    if(filePath.startsWith(d.path)) {
-                        const subpath = relative(d.path, filePath);
+                    const subpath = relative(d.path, filePath);
+                    if(!subpath.startsWith('..')) {
                         d.fileEvent(subpath);
                     }
                 });
@@ -221,6 +224,20 @@ class SAMTemplate {
                 Value: this.samconfig.marker_tag
             };
         }
+
+        if(this.samconfig.base_stack && template.Parameters && template.Parameters.StackTagName) {
+            template.Parameters.StackTagName.Default = this.samconfig.base_stack;
+        }
+        if(this.samconfig.base_stack && template.Parameters && template.Parameters.StackName) {
+            template.Parameters.StackName.Default = this.samconfig.base_stack;
+        }
+        if(this.samconfig.environment && template.Parameters && template.Parameters.EnvironmentTagName) {
+            template.Parameters.EnvironmentTagName.Default = this.samconfig.environment;
+        }
+        if(this.samconfig.environment && template.Parameters && template.Parameters.EnvironmentName) {
+            template.Parameters.EnvironmentName.Default = this.samconfig.environment;
+        }
+
         console.log('samtsc: Writing file', buildPath)
         this.parameters = template.Parameters;
         writeFileSync(buildPath, yaml.dump(template, { schema: cfSchema.CLOUDFORMATION_SCHEMA}));

@@ -46,7 +46,7 @@ class SAMLayer {
 
         const pckFolder = path.resolve(this.path, this.packageFolder);
         if(!existsSync(this.packagePath)) {
-            console.log('samtsc: nodejs/package.json does not exist');
+            console.log(`samtsc: ${this.packagePath} does not exist`);
             return;
         }
         const pckFilePath = path.resolve(pckFolder, this.packagePath);

@@ -61,7 +61,18 @@ class SAMFramework {
                 let parameters = '--no-fail-on-empty-changeset --no-confirm-changeset';
                 let paramOverrides = [];
                 if(samconfig.base_stack) {
-                    paramOverrides.push(`StackName=${samconfig.base_stack}`, `EnvironmentTagName=${samconfig.environment}`);
+                    if(this.template.parameters.StackName) {
+                        paramOverrides.push(`StackName=${samconfig.base_stack}`);
+                    }
+                    if(this.template.parameters.StackTagName) {
+                        paramOverrides.push(`StackTagName=${samconfig.base_stack}`);
+                    }
+                    if(this.template.parameters.EnvironmentName) {
+                        paramOverrides.push(`EnvironmentName=${samconfig.environment}`);
+                    }
+                    if(this.template.parameters.EnvironmentTagName) {
+                        paramOverrides.push(`EnvironmentTagName=${samconfig.environment}`);
+                    }
                 }
                 Object.keys(this.template.parameters).forEach(k => {
                     if(k == 'StackName' || k =='EnvironmentTagName') {
