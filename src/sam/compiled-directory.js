@@ -34,19 +34,17 @@ class SAMCompiledDirectory {
         console.log('samtsc: Deployment Library ', dirPath);
         this.tsconfigDir = findTsConfigDir(dirPath);
         this.loadOutDir();
-
-        const self = this;
-        this.watchHandler = watch(dirPath, { recursive: true }, (event, path) => {
-            if(path.startsWith('package.json.')) {
-                return;
-            }
-            console.log('samtsc: File event occurred', path);
-            self.build(path); 
-        });
     }
 
     cleanup() {
-        this.watchHandler.close();
+    }
+
+    fileEvent(filePath) {
+        if(filePath.startsWith('package.json.')) {
+            return;
+        }
+        console.log('samtsc: File event occurred', filePath);
+        this.build(filePath); 
     }
 
     loadOutDir() {

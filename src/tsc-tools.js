@@ -1,6 +1,6 @@
 const { execSync } = require('child_process');
 const fs = require('./file-system');
-const path = require('path');
+const { resolve } = require('path');
 const moment = require('moment');
 const pathHashes = {};
 
@@ -37,7 +37,7 @@ function getLastModified(path) {
 
 function folderUpdated(path) {
     if(!pathHashes[path]) {
-        const filePath = getFileSmash(path);
+        const filePath = resolve(hashRoot, getFileSmash(path));
         if(fs.existsSync(filePath)) {
             pathHashes[path] = fs.readFileSync(filePath).toString();
         } else {
@@ -52,7 +52,7 @@ function folderUpdated(path) {
 function writeCacheFile(sourcePath, memoryOnly) {
     pathHashes[sourcePath] = moment(getLastModified(sourcePath)).toString();
     if(!memoryOnly) {
-        const filePath = path.resolve(hashRoot, getFileSmash(sourcePath));
+        const filePath = resolve(hashRoot, getFileSmash(sourcePath));
         fs.writeFileSync(filePath, pathHashes[sourcePath]);
     }
 }
@@ -72,8 +72,8 @@ function execOnlyShowErrors(command, options) {
 
 function compileTypescript(sourceFolder, buildRoot, options = {}, samconfig = {}) {
     if(options.library) {
-        const localOutDir = path.resolve(sourceFolder, options.outDir || '.');
-        const outDir = path.resolve(process.cwd(), `${buildRoot}/${sourceFolder}`, options.outDir || '.');
+        const localOutDir = resolve(sourceFolder, options.outDir || '.');
+        const outDir = resolve(process.cwd(), `${buildRoot}/${sourceFolder}`, options.outDir || '.');
         
         console.log('samtsc: Compiling tsc', options.compileFlags, sourceFolder);
         execOnlyShowErrors(`npx tsc -d ${options.compileFlags || ''}`, { cwd: sourceFolder });
@@ -82,8 +82,8 @@ function compileTypescript(sourceFolder, buildRoot, options = {}, samconfig = {}
         fs.copyFolder(localOutDir, outDir);
         console.log('samtsc: Finished copying');
     } else {
-        const outDir = path.resolve(process.cwd(), buildRoot, sourceFolder, options.outDir || '.');
-        const sourcePath = path.resolve(sourceFolder);
+        const outDir = resolve(process.cwd(), buildRoot, sourceFolder, options.outDir || '.');
+        const sourcePath = resolve(sourceFolder);
         const transpileOnly = samconfig.transpile_only == 'true'? '--transpile-only' : '';
 
         const command = `npx tsc ${options.compileFlags || '' } --outDir ${outDir}` + transpileOnly;
@@ -102,8 +102,8 @@ function findTsConfigDir(dirPath) {
         return null;
     }
 
-    const abPath = path.resolve(dirPath, '..');
-    const relPath = path.relative(process.cwd(), abPath);
+    const abPath = resolve(dirPath, '..');
+    const relPath = relative(process.cwd(), abPath);
     return findTsConfigDir(relPath);
 }
 

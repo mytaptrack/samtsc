@@ -1,7 +1,7 @@
 console.log('samtsc: Loading SAM Framework Tools');
 const { execSync } = require('child_process');
 const { execOnlyShowErrors } = require('./tsc-tools');
-const { mkdir } = require('./file-system');
+const { mkdir, watch } = require('./file-system');
 const { logger } = require('./logger');
 const { samconfig } = require('./sam/samconfig');
 const { SAMTemplate } = require('./sam/template');
@@ -44,6 +44,12 @@ class SAMFramework {
         const self = this;
         this.template.events.on('layer-change', (source) => { self.templateUpdated(source) });
         this.template.events.on('template-update', (source) => { self.templateUpdated(); } )
+
+        if(!samconfig.build_only && !samconfig.deploy_only) {
+            this.watcher = watch('.', { recursive: true }, (event, filename) => {
+                this.template.fileEvent(filename);
+            });
+        }
     }
 
     templateUpdated() {
@@ -74,7 +80,11 @@ class SAMFramework {
                 console.log('samtsc: deploy complete, waiting for file change');
             }
         } catch (err) {
-            console.log(err);
+            if(samconfig.deploy_only || samconfig.build_only) {
+                throw err;
+            } else {
+                console.log(err);
+            }
         }
     }
 }

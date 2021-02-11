@@ -26,8 +26,7 @@ class SAMLayer {
         console.log(`samtsc: Identified Serverless Layer: ${this.path}`);
 
         const self = this;
-        this.handleFolderEvent(this.packagePath);
-        this.watchHandler = watch(this.path, { recursive: true }, (event, filePath) => { self.handleFolderEvent(filePath); });
+        this.fileEvent(this.packagePath);
     }
 
     setConfig(properties, metadata) {
@@ -40,7 +39,7 @@ class SAMLayer {
         this.packagePath = this.packageFolder + 'package.json';
     }
 
-    handleFolderEvent(filePath) {
+    fileEvent(filePath) {
         if(filePath != this.packagePath) {
             return;
         }
@@ -129,7 +128,6 @@ class SAMLayer {
     }
 
     cleanup() {
-        this.watchHandler.close();
         this.libs && this.libs.forEach(x => x.cleanup());
     }
 }

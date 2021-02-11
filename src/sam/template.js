@@ -1,5 +1,6 @@
 const yaml = require('js-yaml');
-const { existsSync, writeFileSync, readFileSync, watch, unlinkSync } = require('../file-system');
+const { existsSync, writeFileSync, readFileSync, unlinkSync } = require('../file-system');
+const { relative } = require('path');
 const cfSchema = require('cloudformation-js-yaml-schema');
 const aws = require('aws-sdk');
 const { logger } = require('../logger');
@@ -23,21 +24,41 @@ class SAMTemplate {
         this.buildRoot = buildRoot;
         this.events = new EventEmitter();
         this.ssm = new aws.SSM({ region: samconfig.region });
-        const self = this;
-
-        this.watchHandle = watch('.', (event, filePath) => {
-            if(this.path == filePath && folderUpdated(this.path)) {
-                self.reload();
-                writeCacheFile(this.path, true);
-            }
-        });
     }
 
     cleanup() {
-        this.watchHandle.close();
         this.compiledDirectories && Object.values(this.compiledDirectories).forEach(x => x.cleanup());
         this.layers && this.layers.forEach(l => l.cleanup());
         this.functions && this.functions.forEach(f => f.cleanup());
+    }
+
+    fileEvent(filePath) {
+        if(this.path == filePath && folderUpdated(this.path)) {
+            this.reload();
+            writeCacheFile(this.path, true);
+        }
+
+        Object.values(this.compiledDirectories).forEach(d => {
+            if(filePath.startsWith(d.path)) {
+                const subpath = relative(d.path, filePath);
+                d.fileEvent(subpath);
+            }
+        });
+        this.layers.forEach(l => {
+            if(filePath.startsWith(l.path)) {
+                const subpath = relative(d.path, filePath);
+                l.fileEvent(subpath);
+            }
+
+            if(l.libs) {
+                l.libs.forEach(d => {
+                    if(filePath.startsWith(d.path)) {
+                        const subpath = relative(d.path, filePath);
+                        d.fileEvent(subpath);
+                    }
+                });
+            }
+        });
     }
 
     async reload() {
