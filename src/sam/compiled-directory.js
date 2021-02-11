@@ -1,4 +1,4 @@
-const { watch, readFileSync, writeFileSync, existsSync, archiveDirectory } = require('../file-system');
+const { watch, readFileSync, writeFileSync, existsSync, archiveDirectory, mkdir } = require('../file-system');
 const { execOnlyShowErrors, folderUpdated, compileTypescript, findTsConfigDir, writeCacheFile, getFileSmash } = require('../tsc-tools');
 const { logger } = require('../logger');
 const { EventEmitter } = require('events');
@@ -17,6 +17,7 @@ function buildPackageJson(source, buildRoot) {
         });
     }
 
+    mkdir(`${buildRoot}/${source}`);
     writeFileSync(`${buildRoot}/${source}/package.json`, JSON.stringify(pck, undefined, 2));
     if(pck.dependencies && Object.keys(pck.dependencies).length > 0) {
         execOnlyShowErrors('npm i --only=prod', { cwd: `${buildRoot}/${source}`});

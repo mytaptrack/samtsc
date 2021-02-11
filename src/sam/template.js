@@ -156,7 +156,7 @@ class SAMTemplate {
                 return true;
             }
 
-            x.clean();
+            x.cleanup();
             return false;
         });
 
