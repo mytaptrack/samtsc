@@ -105,3 +105,4 @@ module.exports.lstatSync = fs.lstatSync;
 module.exports.readdirSync = fs.readdirSync;
 module.exports.rmdirSync = rmdir;
 module.exports.touch = touch;
+module.exports.symlinkSync = fs.symlinkSync;

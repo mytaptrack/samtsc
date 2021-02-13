@@ -1,10 +1,11 @@
 console.log('samtsc: Loading SAM Framework Tools');
 const { execSync } = require('child_process');
-const { mkdir, existsSync, writeFileSync, readFileSync, watch } = require('../file-system');
-const path = require('path');
+const { mkdir, existsSync, writeFileSync, readFileSync, symlinkSync } = require('../file-system');
+const { relative, resolve } = require('path');
 const { logger } = require('../logger');
 const { EventEmitter } = require('events');
 const { SAMCompiledDirectory } = require('./compiled-directory');
+const { execOnlyShowErrors } = require('../tsc-tools');
 
 class SAMLayerLib extends SAMCompiledDirectory {
     constructor(dirPath, samconfig, buildRoot, events) {
@@ -31,6 +32,7 @@ class SAMLayer {
 
     setConfig(properties, metadata) {
         this.path = properties.ContentUri;
+        this.pastRoot = relative(resolve(this.path), resolve(process.cwd(), '..'));
         this.layerName = properties.LayerName || `${this.stackName}-${this.name}`;
         this.packageFolder = 'nodejs/';
         if(metadata && metadata.BuildMethod && metadata.BuildMethod.startsWith('nodejs')) {
@@ -44,12 +46,12 @@ class SAMLayer {
             return;
         }
 
-        const pckFolder = path.resolve(this.path, this.packageFolder);
+        const pckFolder = resolve(this.path, this.packageFolder);
         if(!existsSync(this.packagePath)) {
             console.log(`samtsc: ${this.packagePath} does not exist`);
             return;
         }
-        const pckFilePath = path.resolve(pckFolder, this.packagePath);
+        const pckFilePath = resolve(pckFolder, this.packagePath);
         this.pck = JSON.parse(readFileSync(pckFilePath).toString());
         if(!this.pck.dependencies) {
             this.pck.dependencies = {};
@@ -67,7 +69,7 @@ class SAMLayer {
                 }
 
                 val = val.slice(5);
-                let abPath = path.relative(pckFolder, path.resolve(val));
+                let abPath = relative(pckFolder, resolve(val));
                 this.pck.dependencies[k] = 'file:' + abPath;
             });
 
@@ -75,16 +77,37 @@ class SAMLayer {
         }
 
         const self = this;
-        this.libs = Object.values(this.pck.dependencies).filter(d => {
+        this.libs = Object.keys(this.pck.dependencies).filter(k => {
+            const d = this.pck.dependencies[k];
             if(!d.startsWith('file:')) {
                 return false;
             }
-            const subpath = path.resolve(this.path, this.packageFolder, d.slice(5));
-            return subpath.startsWith(process.cwd());
-        }).map(d => {
+            const subpath = resolve(this.path, this.packageFolder, d.slice(5));
+            if(!subpath.startsWith(process.cwd())) {
+                const localLibDir = resolve(this.buildRoot, 'externals', k);
+                mkdir(localLibDir);
+                if(!existsSync(resolve(localLibDir, 'package.json'))) {
+                    logger.info('Creating local link to lib', subpath);
+                    symlinkSync(resolve(subpath, 'package.json'), resolve(localLibDir, 'package.json'), 'file');
+                    const tsconfig = JSON.parse(readFileSync(resolve(subpath, 'tsconfig.json')));
+                    if(!tsconfig.compilerOptions || !tsconfig.compilerOptions.outDir) {
+                        logger.error('External libraries are only supported with an outDir in the tsconfig.  Reference', k);
+                        throw new Error('No external library outDir');
+                    }
+                    
+                    mkdir(resolve(localLibDir, tsconfig.compilerOptions.outDir, '..'));
+
+                    symlinkSync(resolve(subpath, tsconfig.compilerOptions.outDir), resolve(localLibDir, tsconfig.compilerOptions.outDir), 'dir');
+                }
+                this.pck.dependencies[k] = 'file:' + localLibDir;
+            } else {
+                return subpath.startsWith(process.cwd());    
+            }
+        }).map(k => {
+            const d = this.pck.dependencies[k];
             console.log(d.slice(5));
-            const fullPath = path.resolve(this.path, this.packageFolder, d.slice(5));
-            const subpath = path.relative(process.cwd(), fullPath);
+            const fullPath = resolve(this.path, this.packageFolder, d.slice(5));
+            const subpath = relative(process.cwd(), fullPath);
             console.log(subpath);
             return new SAMLayerLib(subpath, this.samconfig, this.buildRoot, this.events);
         });
@@ -109,13 +132,13 @@ class SAMLayer {
                 }
 
                 let refPath = val.slice(5);
-                const abPath = path.resolve(pckFolder, refPath);
+                const abPath = resolve(pckFolder, refPath);
                 if(abPath.startsWith(process.cwd())) {
-                    refPath = path.resolve(nodejsPath, refPath);
+                    refPath = resolve(nodejsPath, refPath);
                 } else {
                     refPath = abPath;
                 }
-                pckCopy.dependencies[k] = refPath;
+                pckCopy.dependencies[k] = 'file:' + refPath;
             });
         }
         writeFileSync(nodejsPath + 'package.json', JSON.stringify(pckCopy, undefined, 2));

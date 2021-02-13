@@ -11,7 +11,7 @@
             "runtimeExecutable": "node",
             "program": "${workspaceFolder}/src/index.js",
             "args": ["--skip-init-deploy"],
-            "cwd": "/Users/nikodykeating/src/services-device-processing",
+            "cwd": "/Users/nikodykeating/src/api",
             "outFiles": [
                 "${workspaceFolder}/**/*.js"
             ]

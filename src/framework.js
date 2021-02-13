@@ -54,6 +54,9 @@ class SAMFramework {
 
     templateUpdated() {
         try {
+            logger.info('Validating SAM template');
+            execSync('sam validate', { cwd: buildRoot, stdio: 'inherit' });
+
             console.log('samtsc: Building SAM deployment');
             execSync(`sam build`, { cwd: buildRoot, stdio: 'inherit' });
             console.log('samtsc: Completed building SAM deployment, deploying with SAM');

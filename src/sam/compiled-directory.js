@@ -2,10 +2,10 @@ const { watch, readFileSync, writeFileSync, existsSync, archiveDirectory, mkdir 
 const { execOnlyShowErrors, folderUpdated, compileTypescript, findTsConfigDir, writeCacheFile, getFileSmash } = require('../tsc-tools');
 const { logger } = require('../logger');
 const { EventEmitter } = require('events');
-const { resolve } = require('path');
+const { resolve, relative } = require('path');
 
 function buildPackageJson(source, buildRoot) {
-    console.log('samtsc: Building package.json', source);
+    logger.info('samtsc: Building package.json', source);
     const pck = JSON.parse(readFileSync(`${source}/package.json`).toString());
     if(pck.dependencies) {
         Object.keys(pck.dependencies).forEach(key => {
@@ -22,7 +22,7 @@ function buildPackageJson(source, buildRoot) {
     if(pck.dependencies && Object.keys(pck.dependencies).length > 0) {
         execOnlyShowErrors('npm i --only=prod', { cwd: `${buildRoot}/${source}`});
     }
-    console.log('samtsc: Completed package.json', source);
+    logger.info('samtsc: Completed package.json', source);
 }
 
 class SAMCompiledDirectory {
@@ -32,8 +32,27 @@ class SAMCompiledDirectory {
         this.buildRoot = buildRoot;
         this.tempDir = tempDir;
         this.events = new EventEmitter();
-        console.log('samtsc: Deployment Library ', dirPath);
-        this.tsconfigDir = findTsConfigDir(dirPath);
+        logger.success('Deployment Library ', dirPath);
+        const parent = findTsConfigDir(dirPath);
+
+        if(!existsSync(this.path)) {
+            logger.error('CodeUri directory does not exist', dirPath);
+            throw new Error('Directory does not exist');
+        }
+        if(parent != this.path) {
+            if(parent == null) {
+                logger.error('No parent tsconfig.json found');
+                throw new Error('No parent tsconfig.json found')
+            }
+            logger.warn('Building tsconfig.json for', dirPath);
+            writeFileSync(`${this.path}/tsconfig.json`, JSON.stringify({ extends: relative(dirPath, parent || '.') + '/tsconfig.json' }, undefined, 2));
+        }
+        if(!existsSync(`${dirPath}/package.json`)) {
+            logger.warn('Building package.json for', dirPath);
+            writeFileSync(`${this.path}/package.json`, JSON.stringify({ name: 'lambda-function', version: '1.0.0' }, undefined, 2));
+        }
+        this.tsconfigDir = this.path;
+
         this.loadOutDir();
     }
 
@@ -44,38 +63,36 @@ class SAMCompiledDirectory {
         if(filePath.startsWith('package.json.')) {
             return;
         }
-        console.log('samtsc: File event occurred', filePath);
+        logger.warn('File event occurred', filePath);
         this.build(filePath); 
     }
 
     loadOutDir() {
-        if(this.tsconfigDir) {
-            console.log('samtsc: Loading tsconfig in', this.tsconfigDir);
-            const tsconfigPath = `${this.tsconfigDir}/tsconfig.json`;
-            const tsconfig = JSON.parse(readFileSync(tsconfigPath).toString());
-            if(tsconfig) {
-                if(tsconfig && tsconfig.compilerOptions && tsconfig.compilerOptions.outDir) {
-                    this.outDir = tsconfig.compilerOptions.outDir;
+        logger.info('Loading tsconfig in', this.tsconfigDir);
+        const tsconfigPath = `${this.tsconfigDir}/tsconfig.json`;
+        const tsconfig = JSON.parse(readFileSync(tsconfigPath).toString());
+        if(tsconfig) {
+            if(tsconfig && tsconfig.compilerOptions && tsconfig.compilerOptions.outDir) {
+                this.outDir = tsconfig.compilerOptions.outDir;
+            }
+
+            if(this.outDir) {
+                if(!tsconfig.exclude) {
+                    tsconfig.exclude = [];
                 }
 
-                if(this.outDir) {
-                    if(!tsconfig.exclude) {
-                        tsconfig.exclude = [];
-                    }
+                let needsSaving = false;
+                if(!tsconfig.exclude.find(x => x == `${this.outDir}/**/*`)) {
+                    tsconfig.exclude.push(`${this.outDir}/**/*`);
+                    needsSaving = true;
+                }
+                if(!tsconfig.exclude.find(x => x == `node_modules/**/*`)) {
+                    tsconfig.exclude.push(`node_modules/**/*`);
+                    needsSaving = true;
+                }
 
-                    let needsSaving = false;
-                    if(!tsconfig.exclude.find(x => x == `${this.outDir}/**/*`)) {
-                        tsconfig.exclude.push(`${this.outDir}/**/*`);
-                        needsSaving = true;
-                    }
-                    if(!tsconfig.exclude.find(x => x == `node_modules/**/*`)) {
-                        tsconfig.exclude.push(`node_modules/**/*`);
-                        needsSaving = true;
-                    }
-
-                    if(needsSaving) {
-                        writeFileSync(tsconfigPath, JSON.stringify(tsconfig, null, 2));
-                    }
+                if(needsSaving) {
+                    writeFileSync(tsconfigPath, JSON.stringify(tsconfig, null, 2));
                 }
             }
         }
@@ -92,7 +109,7 @@ class SAMCompiledDirectory {
     }
 
     installDependencies() {
-        console.log('samtsc: installing dependencies', this.path);
+        logger.info('installing dependencies', this.path);
         const content = JSON.parse(readFileSync(this.path + '/package.json'));
         if(content.dependencies && Object.keys(content.dependencies).length > 0) {
             execOnlyShowErrors(`npm i`, { cwd: this.path });
@@ -123,16 +140,16 @@ class SAMCompiledDirectory {
         }
 
         try {
-            filePath && console.log('samtsc: File changed ', filePath);
+            filePath && logger.info('File changed ', filePath);
 
             if((!filePath && !existsSync(this.path + '/node_modules')) || (filePath && filePath.indexOf('package.json') >= 0)) {
                 this.installDependencies();
             }
 
             if(this.tsconfigDir) {
-                console.log('samtsc: building path ', this.path);
+                logger.info('building path ', this.path);
                 compileTypescript(this.tsconfigDir, this.buildRoot, { library: this.isLibrary }, this.samconfig);
-                console.log('samtsc: build complete', this.path);
+                logger.success('build complete', this.path);
             }
             if(!filePath || filePath.indexOf('package.json') >= 0) {
                 buildPackageJson(this.path, this.buildRoot);
@@ -159,7 +176,7 @@ class SAMCompiledDirectory {
             if(filePath == 'package.json' || !existsSync(`${buildDir}/node_modules`)) {
                 const content = JSON.parse(readFileSync(resolve(this.path, 'package.json')));
                 if(content.dependencies && Object.keys(content.dependencies)) {
-                    logger.info('samtsc: Updating dependencies');
+                    logger.info('Updating dependencies');
                     execOnlyShowErrors('npm i --only=prod', { cwd: `${buildDir}`})        
                 }
             }

@@ -1,6 +1,6 @@
 const { execSync } = require('child_process');
 const fs = require('./file-system');
-const { resolve } = require('path');
+const { resolve, relative } = require('path');
 const moment = require('moment');
 const pathHashes = {};
 
@@ -93,7 +93,7 @@ function compileTypescript(sourceFolder, buildRoot, options = {}, samconfig = {}
 }
 
 function findTsConfigDir(dirPath) {
-    const configPath = dirPath + '/tsconfig.json';
+    const configPath = (dirPath || '.') + '/tsconfig.json';
     if(fs.existsSync(configPath)) {
         return dirPath;
     }
