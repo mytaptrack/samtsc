@@ -293,7 +293,7 @@ class SAMTemplate {
                     SourceArn: { 'Fn::Sub': "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ServerlessRestApi}/*/*/*" }
                 }
             };
-            template.Resources[x + 'Permissions'] = permissions;
+            template.Resources[x + 'Permissions' + new Date().getTime().toString()] = permissions;
         });
     }
 }
