@@ -3,7 +3,7 @@ console.log('Starting samtsc');
 try {
     const fs = require('./file-system');
     const { exit, stdin } = require('process');
-    const { SAMFramework } = require('./sam-template');
+    const { SAMFramework } = require('./framework');
 
     console.log('Checking template file');
     let templateFile;

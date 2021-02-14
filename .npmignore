@@ -1,2 +1,4 @@
 /samples
 /node_modules
+/.build
+/.test
