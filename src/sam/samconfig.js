@@ -43,9 +43,6 @@ class SAMConfig {
         const parts = readFileSync('samconfig.toml').toString().split('\n');
 
         const self = this;
-        Object.keys(buildFlags).forEach(key => {
-            self[key] = buildFlags[key];
-        });
         parts.forEach(x => {
             const index = x.indexOf('=');
             if(index < 0) {
@@ -61,6 +58,9 @@ class SAMConfig {
             const lastIndex = right.lastIndexOf('\"');
             this[left] = right.slice(firstIndex + 1, lastIndex);
             console.log('toml:', left, this[left]);
+        });
+        Object.keys(buildFlags).forEach(key => {
+            self[key] = buildFlags[key];
         });
 
         if(stackeryConfig) {

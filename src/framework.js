@@ -61,7 +61,7 @@ class SAMFramework {
             execSync(`sam build`, { cwd: buildRoot, stdio: 'inherit' });
             console.log('samtsc: Completed building SAM deployment, deploying with SAM');
             if (samconfig.build_only != 'true') {
-                let parameters = '--no-fail-on-empty-changeset --no-confirm-changeset';
+                let parameters = `--no-fail-on-empty-changeset --no-confirm-changeset --s3-bucket ${samconfig.s3_bucket}`;
                 let paramOverrides = [];
                 if(samconfig.base_stack) {
                     if(this.template.parameters.StackName) {
