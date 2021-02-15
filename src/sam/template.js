@@ -252,10 +252,6 @@ class SAMTemplate {
      * @param {map} template 
      */
     fixGlobalApiPermissions(template) {
-        if(!template.Globals.Api) {
-            return;
-        }
-
         Object.keys(template.Resources)
         .filter(x => {
             const f = template.Resources[x];
@@ -264,7 +260,7 @@ class SAMTemplate {
             }
 
             if(!Object.values(f.Properties.Events).find(y => {
-                return y.Type == 'Api' && y.Properties && !y.Properties.RestApiId;
+                return y.Type == 'Api' && y.Properties;
             })) {
                 return;
             }
@@ -284,13 +280,21 @@ class SAMTemplate {
             }
             return true;
         }).forEach(x => {
+            let apiResource =  'ServerlessRestApi';
+            const f = template.Resources[x];
+            const ev = Object.values(f.Properties.Events).find(y => {
+                return y.Type == 'Api' && y.Properties && y.Properties.RestApiId;
+            });
+            if(ev) {
+                apiResource = ev.Properties.RestApiId.Ref || ev.Properties.RestApiId.data || apiResource;
+            }
             const permissions = {
                 Type: 'AWS::Lambda::Permission',
                 Properties: {
                     Action: 'lambda:InvokeFunction',
                     FunctionName: { Ref: x },
                     Principal: 'apigateway.amazonaws.com',
-                    SourceArn: { 'Fn::Sub': "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ServerlessRestApi}/*/*/*" }
+                    SourceArn: { 'Fn::Sub': "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${" + apiResource + "}/*/*/*" }
                 }
             };
             template.Resources[x + 'Permissions' + new Date().getTime().toString()] = permissions;
