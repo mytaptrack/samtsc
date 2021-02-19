@@ -27,6 +27,7 @@ class SAMFramework {
         console.log('samtsc: Loading Framework');
         const self = this;
         samconfig.load(flags, buildRootDir);
+        samconfig.save();
 
         buildRoot = buildRootDir;
         this.buildRoot = buildRoot;

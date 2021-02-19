@@ -92,17 +92,16 @@ class SAMConfig {
             }
         }
 
-        if(!this.stack_name) {
-            if(this.base_stack && this.environment) {
-                this.stack_name = `${this.base_stack}-${this.environment}`;
-            } else {
-                console.log('samtsc: Could not find or construct stack name');
-                process.exit(1);
-                throw new Error('Could not find stack name');
-            }
+        if(this.base_stack && this.environment) {
+            this.stack_name = `${this.base_stack}-${this.environment}`;
+        } else {
+            console.log('samtsc: Could not find or construct stack name');
+            process.exit(1);
+            throw new Error('Could not find stack name');
         }
     }
 }
 
 const samconfig = new SAMConfig();
 module.exports.samconfig = samconfig;
+module.exports.SAMConfig = SAMConfig;
