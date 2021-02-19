@@ -33,6 +33,36 @@ function rmdir(sourceDir) {
     fs.rmdirSync(sourceDir);
 }
 
+function syncFolder(sourceDir, outDir, excludeArray = []) {
+    if(!fs.existsSync(outDir) || excludeArray.find(x => sourceDir.endsWith(x))) {
+        mkdir(outDir);
+    }
+
+    const results = fs.readdirSync(sourceDir, { withFileTypes: true });
+    for(let f of results) {
+        if(excludeArray.find(x => f.name.endsWith(x))) {
+            continue;
+        }
+        const sourceSub = path.resolve(sourceDir, f.name);
+        const destSub = path.resolve(outDir, f.name);
+        
+        if(f.isDirectory()) {
+            copyFolder(sourceSub, destSub);
+        } else {
+            const sourceStat = fs.lstatSync(sourceSub);
+            const destStat = fs.existsSync(destSub)? fs.lstatSync(destSub) : {};
+            if(sourceStat.size === destStat.size && sourceStat.mtimeMs === destStat.mtimeMs) {
+                continue;
+            }
+            if(fs.existsSync(destSub)) {
+                fs.unlinkSync(destSub);
+            }
+            fs.copyFileSync(sourceSub, destSub);
+            fs.utimesSync(destSub, sourceStat.atime, sourceStat.mtime);
+        }
+    }
+}
+
 function copyFolder(sourceDir, outDir, excludeArray = []) {
     if(!fs.existsSync(outDir) || excludeArray.find(x => sourceDir.endsWith(x))) {
         mkdir(outDir);
@@ -40,6 +70,9 @@ function copyFolder(sourceDir, outDir, excludeArray = []) {
 
     const results = fs.readdirSync(sourceDir, { withFileTypes: true });
     for(let f of results) {
+        if(excludeArray.find(x => f.name.endsWith(x))) {
+            continue;
+        }
         const sourceSub = path.resolve(sourceDir, f.name);
         const destSub = path.resolve(outDir, f.name);
         
@@ -106,3 +139,4 @@ module.exports.readdirSync = fs.readdirSync;
 module.exports.rmdirSync = rmdir;
 module.exports.touch = touch;
 module.exports.symlinkSync = fs.symlinkSync;
+module.exports.syncFolder = syncFolder;
