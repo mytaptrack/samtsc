@@ -61,6 +61,20 @@ dev1
 Stack Name: {mystackname}-{env}-dev1
 
 
+# Global Permissions
+At times its important that all functions in a stack have the same set of permissions to common resources.  In samtsc, the Global Function has been expanded to include Policies.  Policy statements can be added to this section in the same way that they would be added to the AWS::Serverless::Function.  These policies will be merged into every function in the stack.
+
+```yml
+Globals:
+   Function:
+      Policies:
+         - Statement:
+            - Effect: Allow
+              Action: s3:GetObject
+              Resource: '*'
+```
+
+
 # What to expect
 When **samtsc** is first started, it will load your template file and if necessary will attempt to compile your sources to the ".build" directory in your project.  After building the project, **samtsc** will then deploy the full project using the configurations located in the samconfig.toml file.
 
