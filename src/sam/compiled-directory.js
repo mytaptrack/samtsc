@@ -1,4 +1,4 @@
-const { watch, readFileSync, writeFileSync, existsSync, archiveDirectory, mkdir } = require('../file-system');
+const { watch, readFileSync, writeFileSync, existsSync, archiveDirectory, mkdir, syncFolder } = require('../file-system');
 const { execOnlyShowErrors, folderUpdated, compileTypescript, findTsConfigDir, writeCacheFile, getFileSmash } = require('../tsc-tools');
 const { logger } = require('../logger');
 const { EventEmitter } = require('events');
@@ -145,6 +145,8 @@ class SAMCompiledDirectory {
             if((!filePath && !existsSync(this.path + '/node_modules')) || (filePath && filePath.indexOf('package.json') >= 0)) {
                 this.installDependencies();
             }
+
+            syncFolder(this.path, resolve(this.buildRoot, this.path), ['node_modules', '.ts', 'package.json', 'tsconfig.json']);
 
             if(this.tsconfigDir) {
                 logger.info('building path ', this.path);
