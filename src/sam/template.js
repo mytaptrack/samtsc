@@ -241,6 +241,7 @@ class SAMTemplate {
         console.log('samtsc: Writing file', buildPath)
         this.parameters = template.Parameters;
         this.fixGlobalApiPermissions(template);
+        this.mergeGlobalPolicies(template);
         writeFileSync(buildPath, yaml.dump(template, { schema: cfSchema.CLOUDFORMATION_SCHEMA}));
         this.events.emit('template-update', this);
     }
@@ -299,6 +300,42 @@ class SAMTemplate {
             };
             template.Resources[x + 'Permissions' + new Date().getTime().toString()] = permissions;
         });
+    }
+
+
+    mergeGlobalPolicies(template) {
+        if(!(template.Globals && template.Globals.Function && template.Globals.Function.Policies)) {
+            return;
+        }
+
+        const globalPolicies = template.Globals.Function.Policies.find(x => !x.Statement);
+        if(!Array.isArray(template.Globals.Function.Policies)) {
+            logger.error('Globals.Function.Policies is not an array', globalPolicies);
+            throw new Error('Globals.Function.Policies is not an array');
+        }
+        const statement = template.Globals.Function.Policies.find(x => x.Statement);
+
+        Object.values(template.Resources)
+            .filter(f => f.Type == 'AWS::Serverless::Function' && f.Properties)
+            .forEach(f => {
+                if(!f.Properties.Policies) {
+                    f.Properties.Policies = [];
+                }
+                if(statement) {
+                    const curStatement = f.Properties.Policies.find(x => x.Statement);
+                    if(!curStatement) {
+                        f.Properties.Policies.push(statement);
+                    } else {
+                        curStatement.Statement.push(...statement.Statement);
+                    }
+                }
+
+                if(globalPolicies) {
+                    f.Properties.Policies.push(globalPolicies);
+                }
+            });
+
+        delete template.Globals.Function.Policies;
     }
 }
 module.exports.SAMTemplate = SAMTemplate;

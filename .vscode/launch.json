@@ -10,8 +10,8 @@
             "name": "Launch Program",
             "runtimeExecutable": "node",
             "program": "${workspaceFolder}/src/index.js",
-            "args": ["--skip-init-deploy"],
-            "cwd": "/Users/nikodykeating/src/api",
+            "args": ["--skip-init-deploy", "--environment", "prod"],
+            "cwd": "/Users/nikodykeating/src/services-system-health",
             "outFiles": [
                 "${workspaceFolder}/**/*.js"
             ]
