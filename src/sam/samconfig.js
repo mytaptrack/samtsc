@@ -1,5 +1,7 @@
 const { existsSync, readFileSync, writeFileSync } = require('../file-system');
 const { resolve } = require('path');
+const { logger } = require('../logger');
+const { readFile } = require('fs');
 
 let stackeryConfig;
 if(process.env.stackery_config) {
@@ -97,7 +99,14 @@ class SAMConfig {
         } else {
             console.log('samtsc: Could not find or construct stack name');
             process.exit(1);
-            throw new Error('Could not find stack name');
+        }
+
+        if(existsSync('dev.stack.txt')) {
+            const addToStack = readFileSync('dev.stack.txt').toString().trim();
+            if(addToStack) {
+                this.stack_name = `${this.stack_name}-${addToStack}`;
+                logger.warn('Setting up developer isolated stack', this.stack_name);
+            }
         }
     }
 }
