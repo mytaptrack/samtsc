@@ -129,7 +129,9 @@ class SAMCompiledDirectory {
             return;
         }
 
-        if(!folderUpdated(this.path)) {
+        if(!folderUpdated(this.path) && 
+            existsSync(resolve(this.buildRoot, this.path, 'package.json')) &&
+            (!this.outDir || existsSync(resolve(this.path, this.outDir)))) {
             // console.log('samtsc: No build needed');
             // TODO: Figure out if this scenario is a second call of the same compile or a separate function
             // needing to be deployed
