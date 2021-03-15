@@ -152,7 +152,7 @@ class SAMCompiledDirectory {
 
             if(this.tsconfigDir) {
                 logger.info('building path ', this.path);
-                compileTypescript(this.tsconfigDir, this.buildRoot, { library: this.isLibrary }, this.samconfig);
+                compileTypescript(this.tsconfigDir, this.buildRoot, { library: this.isLibrary, outDir: this.outDir }, this.samconfig);
                 logger.success('build complete', this.path);
             }
             if(!filePath || filePath.indexOf('package.json') >= 0) {
