@@ -2,6 +2,7 @@ const { execSync } = require('child_process');
 const fs = require('./file-system');
 const { resolve, relative } = require('path');
 const moment = require('moment');
+const { logger } = require('./logger');
 const pathHashes = {};
 
 const hashRoot = '.build/hash';
@@ -73,6 +74,10 @@ function execOnlyShowErrors(command, options) {
 function compileTypescript(sourceFolder, buildRoot, options = {}, samconfig = {}) {
     if(options.library) {
         const localOutDir = resolve(sourceFolder, options.outDir || '.');
+        if(options.outDir) {
+            logger.info('Removing outDir');
+            fs.rmdirSync(localOutDir);
+        }
         const outDir = resolve(process.cwd(), `${buildRoot}/${sourceFolder}`, options.outDir || '.');
         
         console.log('samtsc: Compiling tsc', options.compileFlags, sourceFolder);
