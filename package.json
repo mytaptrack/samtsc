@@ -22,8 +22,7 @@
         "js-yaml": "^4.0.0",
         "moment": "^2.29.1"
     },
-    "peerDependencies": {
-    },
+    "peerDependencies": {},
     "keywords": [
         "AWS",
         "SAM",

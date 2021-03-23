@@ -5,7 +5,7 @@ const { EventEmitter } = require('events');
 const { resolve, relative } = require('path');
 
 function buildPackageJson(source, buildRoot) {
-    logger.info('samtsc: Building package.json', source);
+    logger.info('Building package.json', source);
     const pck = JSON.parse(readFileSync(`${source}/package.json`).toString());
     if(pck.dependencies) {
         Object.keys(pck.dependencies).forEach(key => {
@@ -24,7 +24,7 @@ function buildPackageJson(source, buildRoot) {
     if(pck.dependencies && Object.keys(pck.dependencies).length > 0) {
         execOnlyShowErrors('npm i --only=prod', { cwd: `${buildRoot}/${source}`});
     }
-    logger.info('samtsc: Completed package.json', source);
+    logger.info('Completed package.json', source);
 }
 
 class SAMCompiledDirectory {
@@ -36,6 +36,7 @@ class SAMCompiledDirectory {
         this.events = new EventEmitter();
         logger.success('Deployment Library ', dirPath);
         const parent = findTsConfigDir(dirPath);
+        const path = resolve(this.path);
 
         if(!existsSync(this.path)) {
             logger.error('CodeUri directory does not exist', dirPath);
