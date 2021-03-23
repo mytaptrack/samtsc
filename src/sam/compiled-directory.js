@@ -13,6 +13,8 @@ function buildPackageJson(source, buildRoot) {
                 const subPrefix = pck.dependencies[key].slice(5);
                 const res = resolve(source, subPrefix);
                 pck.dependencies[key] = `file:${res}`;
+            } else if(pck.dependencies[key].startsWith('^') || pck.dependencies[key].startsWith('~')) {
+                pck.dependencies[key].splice(1);
             }
         });
     }
@@ -112,7 +114,11 @@ class SAMCompiledDirectory {
         logger.info('installing dependencies', this.path);
         const content = JSON.parse(readFileSync(this.path + '/package.json'));
         if(content.dependencies && Object.keys(content.dependencies).length > 0) {
-            execOnlyShowErrors(`npm i`, { cwd: this.path });
+            if(existsSync(resolve(this.path, 'package-lock.json'))) {
+                execOnlyShowErrors(`npm ci`, { cwd: this.path });
+            } else {
+                execOnlyShowErrors(`npm i`, { cwd: this.path });
+            }
         }
     }
 

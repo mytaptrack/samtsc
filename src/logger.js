@@ -6,7 +6,7 @@ class Logger {
     }
     debug(...params) {
         if(this.samconfig.debug) {
-            console.log(...params);
+            console.log('samtsc: DEBUG', ...params);
         }
     }
 
