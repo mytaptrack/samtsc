@@ -5,7 +5,7 @@ const { SAMTemplate } = require('./template');
 
 const samconfig = { no_deploy: true, stack_reference_layer: "stackLayer", save: () => {} };
 
-describe('template', () => {
+describe('System: template', () => {
     afterEach(() => {
         process.chdir(origin);
     });

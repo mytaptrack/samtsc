@@ -14,9 +14,8 @@ const { logger } = require('../logger');
 
 logger.samconfig = {};
 
-describe('SAMLayer', () => {
 
-    
+describe('Unit: SAMLayer', () => {
     describe('Construct packages', () => {
         beforeEach(() => {
             jest.resetAllMocks();

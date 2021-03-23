@@ -21,7 +21,7 @@ describe('tsc-tools', () => {
         expect(fs.existsSync(`${buildRoot}/${function1Path}/index.js.map`)).toBeTruthy();
     });
 
-    test('Compile library', () => {
+    test('System: Compile library', () => {
         setupTestEnvironment();
         const fullPath = path.resolve(libPath);
         console.log(libPath, fs.existsSync(libPath));

@@ -6,7 +6,6 @@ const { logger } = require('../logger');
 const { EventEmitter } = require('events');
 const { SAMCompiledDirectory } = require('./compiled-directory');
 
-
 class SAMLayerLib extends SAMCompiledDirectory {
     constructor(dirPath, samconfig, buildRoot, events) {
         super(dirPath, samconfig, buildRoot);
