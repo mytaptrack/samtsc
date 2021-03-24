@@ -243,6 +243,7 @@ class SAMTemplate {
         this.fixGlobalApiPermissions(template);
         this.mergeGlobalPolicies(template);
         writeFileSync(buildPath, yaml.dump(template, { schema: cfSchema.CLOUDFORMATION_SCHEMA}));
+        
         this.events.emit('template-update', this);
     }
 

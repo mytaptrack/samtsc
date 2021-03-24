@@ -1,6 +1,6 @@
 {
     "name": "samtsc",
-    "version": "1.0.48",
+    "version": "1.0.49",
     "author": "Nikody Keating",
     "license": "MIT",
     "publisher": "mytaptrack",
@@ -22,8 +22,7 @@
         "js-yaml": "^4.0.0",
         "moment": "^2.29.1"
     },
-    "peerDependencies": {
-    },
+    "peerDependencies": {},
     "keywords": [
         "AWS",
         "SAM",

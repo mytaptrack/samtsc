@@ -1,17 +1,15 @@
 console.log('samtsc: Loading SAM Framework Tools');
 const { execSync } = require('child_process');
-const { mkdir, existsSync, writeFileSync, readFileSync, symlinkSync } = require('../file-system');
+const { mkdir, existsSync, writeFileSync, readFileSync, symlinkSync, copyFileSync } = require('../file-system');
 const { relative, resolve } = require('path');
 const { logger } = require('../logger');
 const { EventEmitter } = require('events');
 const { SAMCompiledDirectory } = require('./compiled-directory');
-const { execOnlyShowErrors } = require('../tsc-tools');
 
 class SAMLayerLib extends SAMCompiledDirectory {
     constructor(dirPath, samconfig, buildRoot, events) {
         super(dirPath, samconfig, buildRoot);
         this.isLibrary = true;
-        const self = this;
         this.events.on('build-complete', () => { events.emit('layer-change');});
     }
 }
@@ -24,19 +22,26 @@ class SAMLayer {
         this.stackName = stackName;
         this.samconfig = samconfig;
         this.setConfig(properties, metadata);
-        console.log(`samtsc: Identified Serverless Layer: ${this.path}`);
+        logger.info(`Identified Serverless Layer: ${this.path}`);
 
-        const self = this;
         this.fileEvent(this.packagePath);
     }
 
     setConfig(properties, metadata) {
         this.path = properties.ContentUri;
-        this.pastRoot = relative(resolve(this.path), resolve(process.cwd(), '..'));
+        this.sourcePath = this.path;
+        if(this.path == '.') {
+            logger.info('Constructing stack layer');
+            this.path = 'src/layers/stack-layer';
+            properties.ContentUri = this.path;
+        }
+
         this.layerName = properties.LayerName || `${this.stackName}-${this.name}`;
         this.packageFolder = 'nodejs/';
         if(metadata && metadata.BuildMethod && metadata.BuildMethod.startsWith('nodejs')) {
+            delete metadata.BuildMethod;
             this.packageFolder = '';
+            this.copyToNodeJs = true;
         }
         this.packagePath = this.packageFolder + 'package.json';
     }
@@ -46,9 +51,11 @@ class SAMLayer {
             return;
         }
 
-        const pckFolder = resolve(this.path, this.packageFolder);
+        let pckFolder = resolve(this.sourcePath, this.packageFolder);
+        let pathWithNodejs = false;
+        logger.debug(pckFolder);
         if(!existsSync(this.packagePath)) {
-            console.log(`samtsc: ${this.packagePath} does not exist`);
+            logger.error(`${this.packagePath} does not exist`);
             return;
         }
         const pckFilePath = resolve(pckFolder, this.packagePath);
@@ -56,27 +63,78 @@ class SAMLayer {
         if(!this.pck.dependencies) {
             this.pck.dependencies = {};
         }
+        if(this.copyToNodeJs) {
+            pckFolder = resolve(this.sourcePath, this.packageFolder, 'nodejs');
+            pathWithNodejs = true;
+            
+            if(this.sourcePath != '.') {
+                Object.keys(this.pck.dependencies).forEach(k => {
+                    let val = this.pck.dependencies[k];
+                    if(!val.startsWith('file:')) {
+                        return;
+                    }
 
-        if(this.name == this.samconfig.stack_reference_layer) {
-            console.log('samtsc: Constructing combined dependencies');
-            const rootPck = JSON.parse(readFileSync('package.json'));
+                    val = val.slice(5);
+                    this.pck.dependencies[k] = 'file:../' + val;
+                });
+            } else {
+                Object.keys(this.pck.dependencies).forEach(k => {
+                    let val = this.pck.dependencies[k];
+                    if(!val.startsWith('file:')) {
+                        return;
+                    }
 
-            const packs = !rootPck.dependencies? [] : Object.keys(rootPck.dependencies).forEach(k => {
-                let val = rootPck.dependencies[k];
-                if(!val.startsWith('file:')) {
-                    this.pck.dependencies[k] = val;
-                    return;
-                }
-
-                val = val.slice(5);
-                let abPath = relative(pckFolder, resolve(val));
-                this.pck.dependencies[k] = 'file:' + abPath;
-            });
-
-            console.log('samtsc: Construction complete');
+                    val = val.slice(5);
+                    val = resolve(val);
+                    this.pck.dependencies[k] = 'file:../' + relative(resolve(this.path), val);
+                });
+            }
         }
 
-        const self = this;
+        let lock;
+        const sourceLockPath = resolve(this.sourcePath, 'package-lock.json');
+        if(existsSync(sourceLockPath)) {
+            lock = JSON.parse(readFileSync(sourceLockPath));
+        }
+
+        if(this.name == this.samconfig.stack_reference_layer && this.sourcePath != '.') {
+            logger.info('Constructing combined dependencies');
+            const rootPck = JSON.parse(readFileSync('package.json'));
+            if(rootPck.dependencies && Object.keys(rootPck.dependencies).length > 0) {
+                lock = null;
+                Object.keys(rootPck.dependencies).forEach(k => {
+                    let val = rootPck.dependencies[k];
+                    if(!val.startsWith('file:')) {
+                        this.pck.dependencies[k] = val;
+                        return;
+                    }
+    
+                    val = val.slice(5);
+                    val = resolve(val);
+                    let abPath = relative(pckFolder, val);
+                    this.pck.dependencies[k] = 'file:' + abPath;
+                });
+            }
+            logger.info('Construction complete');
+        } else if(this.sourcePath == '.') {
+            logger.info('samtsc: Constructing combined dependencies');
+
+            if(this.pck.dependencies && this.pck.dependencies.length > 0) {
+                Object.keys(this.pck.dependencies).forEach(k => {
+                    let val = this.pck.dependencies[k];
+                    if(!val.startsWith('file:')) {
+                        this.pck.dependencies[k] = val;
+                        return;
+                    }
+    
+                    val = val.slice(5);
+                    let abPath = relative(this.path, resolve(val));
+                    this.pck.dependencies[k] = 'file:' + abPath;
+                });
+            }
+            logger.info('samtsc: Construction complete');
+        }
+
         this.libs = Object.keys(this.pck.dependencies).filter(k => {
             const d = this.pck.dependencies[k];
             if(!d.startsWith('file:')) {
@@ -100,16 +158,33 @@ class SAMLayer {
                     symlinkSync(resolve(subpath, tsconfig.compilerOptions.outDir), resolve(localLibDir, tsconfig.compilerOptions.outDir), 'dir');
                 }
                 this.pck.dependencies[k] = 'file:' + localLibDir;
+                if(lock) {
+                    lock.dependencies[k].version = this.pck.dependencies[k]
+                }
+            } else if(pathWithNodejs) {
+                if(!subpath.startsWith(process.cwd())) {
+                    return;
+                }
+                this.pck.dependencies[k] = 'file:' + d.slice(5);
+                if(lock) {
+                    lock.dependencies[k].version = this.pck.dependencies[k]
+                }
+                return true;
             } else {
-                return subpath.startsWith(process.cwd());    
+                return subpath.startsWith(process.cwd());
             }
         }).map(k => {
-            const d = this.pck.dependencies[k];
-            console.log(d.slice(5));
-            const fullPath = resolve(this.path, this.packageFolder, d.slice(5));
+            let d = this.pck.dependencies[k];
+            if(pathWithNodejs) {
+                d = d.slice(5 + 3);
+            } else {
+                d = d.slice(5);
+            }
+            logger.debug(d);
+            const fullPath = resolve(this.path, this.packageFolder, d);
             const subpath = relative(process.cwd(), fullPath);
             console.log(subpath);
-            return new SAMLayerLib(subpath, this.samconfig, this.buildRoot, this.events);
+            return new SAMLayerLib(subpath.replace(/\\/g, '/'), this.samconfig, this.buildRoot, this.events);
         });
 
         this.libs.forEach(x => {
@@ -120,7 +195,8 @@ class SAMLayer {
         });
 
         console.log('samtsc: constructing build directory');
-        const nodejsPath = `${this.buildRoot}/${this.path}/${this.packageFolder}`;
+        const addExtraJs = lock || this.copyToNodeJs? 'nodejs/' : '';
+        const nodejsPath = `${this.buildRoot}/${this.path}/${this.packageFolder}${addExtraJs}`;
         mkdir(nodejsPath);
 
         const pckCopy = JSON.parse(JSON.stringify(this.pck));
@@ -132,20 +208,34 @@ class SAMLayer {
                 }
 
                 let refPath = val.slice(5);
-                const abPath = resolve(pckFolder, refPath);
+                
+                const packFolder = this.sourcePath == '.'? this.path : pckFolder;
+                const abPath = resolve(packFolder, refPath);
                 if(abPath.startsWith(process.cwd())) {
                     refPath = resolve(nodejsPath, refPath);
                 } else {
                     refPath = abPath;
                 }
                 pckCopy.dependencies[k] = 'file:' + refPath;
+                if(lock) {
+                    lock.dependencies[k].version = 'file:' + refPath;
+                }
             });
         }
         writeFileSync(nodejsPath + 'package.json', JSON.stringify(pckCopy, undefined, 2));
+        if(lock) {
+            const outputPath = resolve(nodejsPath, 'package-lock.json');
+            writeFileSync(outputPath, JSON.stringify(lock, undefined, 2));
+            if(pckCopy.dependencies && Object.keys(this.pck.dependencies).length > 0) {
+                execSync('npm ci --only=prod', { cwd: nodejsPath, stdio: 'inherit' });
+            }
+        } else {
+            if(pckCopy.dependencies && Object.keys(this.pck.dependencies).length > 0) {
+                logger.info('samtsc: installing dependencies');
+                execSync('npm i --only=prod', { cwd: nodejsPath, stdio: 'inherit' });
+            }
+        }
 
-        console.log('samtsc: installing dependencies');
-        execSync('npm i --only=prod', { cwd: nodejsPath, stdio: 'inherit' });
-        
         console.log('samtsc: file change ', filePath);
         this.events.emit('layer-change', this);
     }

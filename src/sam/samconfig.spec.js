@@ -1,7 +1,7 @@
 const testUtils = require('../test-utils/index');
 const { SAMConfig } = require('./samconfig');
 
-describe('samconfig', () => {    
+describe('System: samconfig', () => {    
     test('Load And Override', () => {
         process.chdir('samples/stack_layer');
         const samconfig = new SAMConfig();

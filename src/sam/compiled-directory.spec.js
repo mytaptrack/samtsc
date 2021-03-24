@@ -29,7 +29,7 @@ function cleanup(function1, function2, library) {
     library.cleanup();
 }
 
-describe('compiled-directory', () => {
+describe('System: compiled-directory', () => {
     afterEach(() => {
         process.chdir(origin);
     });
