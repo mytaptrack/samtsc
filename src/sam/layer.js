@@ -195,7 +195,7 @@ class SAMLayer {
         });
 
         console.log('samtsc: constructing build directory');
-        const addExtraJs = lock? 'nodejs/' : '';
+        const addExtraJs = lock || this.copyToNodeJs? 'nodejs/' : '';
         const nodejsPath = `${this.buildRoot}/${this.path}/${this.packageFolder}${addExtraJs}`;
         mkdir(nodejsPath);
 
@@ -208,9 +208,7 @@ class SAMLayer {
                 }
 
                 let refPath = val.slice(5);
-                if(addExtraJs) {
-                    refPath = '../' + refPath;
-                }
+                
                 const packFolder = this.sourcePath == '.'? this.path : pckFolder;
                 const abPath = resolve(packFolder, refPath);
                 if(abPath.startsWith(process.cwd())) {
