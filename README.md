@@ -1,5 +1,5 @@
 # samtsc
-This project was put together to make working with teh AWS SAM framework easier for developers. It simplifies working with the SAM framework, using real-time updates to lambda functions, layers and resources.  This is done by **samtsc** connecting to the template.yaml or template.yml file, then watching the serverless functions and layers defined.
+This project was put together to make working with the AWS SAM framework easier for developers. It simplifies working with the SAM framework, using real-time updates to lambda functions, layers and resources.  This is done by **samtsc** connecting to the template.yaml or template.yml file, then watching the serverless functions and layers defined.
 
 # Prerequisites
 To use **samtsc** you must have the following in the folder that is running **samtsc**
@@ -45,6 +45,7 @@ Any value in the samconfig.toml can be overridden by attaching -- before the var
 | --build-only | This flag configures the system to only build then exit | build_only = "true" |
 | --skip-init-deploy | This flag skips the initial SAM deployment speeding the start time.  The negative aspect is that if there are new resources, they won't be deployed which could cause debugging issues | skip_init_deploy = "true" |
 | --stack_reference_layer stackLayerResourceName | This property leverages the prod dependencies defined in the root package.json to construct the dependencies in the layer.  Installing dependencies at the root also makes those dependencies available for all your lambda functions. | stack_reference_layer = "stackLayerResourceName" |
+| --include_in_builddir | This value is a comma delimted list of directories to copy to the build directory | include_in_builddir = "./path1,./path2" |
 
 # Developer Stack
 When multiple developers are working on the same stack, it can get challenging if they overwrite each other's changes.  For this purpose, developers can use the file
