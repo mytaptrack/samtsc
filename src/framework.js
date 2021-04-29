@@ -1,10 +1,12 @@
 console.log('samtsc: Loading SAM Framework Tools');
 const { execSync } = require('child_process');
 const { execOnlyShowErrors } = require('./tsc-tools');
-const { mkdir, watch } = require('./file-system');
+const { mkdir, watch, existsSync, symlinkSync } = require('./file-system');
 const { logger } = require('./logger');
 const { samconfig } = require('./sam/samconfig');
 const { SAMTemplate } = require('./sam/template');
+const { copyFolder } = require('./file-system');
+const { resolve, relative } = require('path');
 
 const tempDir = "./.build/tmp";
 mkdir(tempDir);
@@ -38,6 +40,30 @@ class SAMFramework {
         this.template = new SAMTemplate(this.path, buildRoot, samconfig);
         await this.template.reload();
 
+        if(samconfig.include_in_builddir) {
+            if(!existsSync('.build/root')) {
+                mkdir('.build/root');
+            }
+            samconfig.include_in_builddir = samconfig.include_in_builddir.split(',');
+            samconfig.include_in_builddir.forEach((x, i) => {
+                if(!x) {
+                    return;
+                }
+
+                const source = resolve(x);
+                const dest = resolve('.build/root', x);
+
+                if(!existsSync(source)) {
+                    return;
+                }
+
+                const relativePath = relative(resolve('.'), source);
+                samconfig.include_in_builddir[i] = relativePath;
+
+                copyFolder(source, dest);
+            });
+        }
+
         if(samconfig.skip_init_deploy != 'true') {
             this.templateUpdated();
         }
@@ -49,6 +75,29 @@ class SAMFramework {
         if(!samconfig.build_only && !samconfig.deploy_only) {
             this.watcher = watch('.', { recursive: true }, (event, filename) => {
                 this.template.fileEvent(filename);
+
+                if(samconfig.include_in_builddir) {
+                    let modified = false;
+                    samconfig.include_in_builddir.forEach(x => {
+                        if(!filename.startsWith(x)) {
+                            return;
+                        }
+        
+                        const source = resolve(x);
+                        const dest = resolve('.build/root', x);
+        
+                        if(!existsSync(source)) {
+                            return;
+                        }
+        
+                        copyFolder(source, dest);
+                        modified = true;
+                    });
+
+                    if(modified) {
+                        self.templateUpdated();
+                    }
+                }
             });
         }
     }
@@ -58,8 +107,15 @@ class SAMFramework {
             logger.info('Validating SAM template');
             execSync('sam validate', { cwd: buildRoot, stdio: 'inherit' });
 
-            console.log('samtsc: Building SAM deployment');
+            logger.info('Building SAM deployment');
             execSync(`sam build`, { cwd: buildRoot, stdio: 'inherit' });
+            if(!samconfig.minimal_deploy) {
+                const source = resolve(buildRoot, '.aws-sam');
+                const dest = resolve('.aws-sam');
+                logger.info('Copying sam files for use at root', source, dest);
+                copyFolder(source, dest);
+            }
+
             console.log('samtsc: Completed building SAM deployment, deploying with SAM');
             if (samconfig.build_only != 'true') {
                 let parameters = `--no-fail-on-empty-changeset --no-confirm-changeset --s3-bucket ${samconfig.s3_bucket}`;
