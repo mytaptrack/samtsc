@@ -178,7 +178,7 @@ class SAMTemplate {
                 layerRefs.push(...filterRefs(f.layers));
             });
 
-            const paramNames = Object.keys(template.Parameters);
+            const paramNames = Object.keys(template.Parameters || {});
             const paramRefs = layerRefs.filter(r => paramNames.find(x => x == r) && template.Parameters[r].Type == 'AWS::SSM::Parameter::Value<String>');
 
             if(paramRefs.length > 0) {

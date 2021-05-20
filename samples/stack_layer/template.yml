@@ -18,7 +18,7 @@ Resources:
     Type: AWS::Serverless::LayerVersion
     Properties:
       LayerName: !Sub ${AWS::StackName}-stack-layer
-      ContentUri: src/layer
+      ContentUri: "."
     Metadata:
       BuildMethod: nodejs12.x
 

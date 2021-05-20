@@ -1,12 +1,13 @@
 console.log('samtsc: Loading SAM Framework Tools');
 const { execSync } = require('child_process');
 const { execOnlyShowErrors } = require('./tsc-tools');
-const { mkdir, watch, existsSync, symlinkSync } = require('./file-system');
+const { mkdir, watch, existsSync, symlinkSync, readFileSync } = require('./file-system');
 const { logger } = require('./logger');
 const { samconfig } = require('./sam/samconfig');
 const { SAMTemplate } = require('./sam/template');
 const { copyFolder } = require('./file-system');
 const { resolve, relative } = require('path');
+const { PluginFramework } = require('./plugin-framework');
 
 const tempDir = "./.build/tmp";
 mkdir(tempDir);
@@ -29,6 +30,8 @@ class SAMFramework {
         console.log('samtsc: Loading Framework');
         const self = this;
         samconfig.load(flags, buildRootDir);
+        this.pluginFramework = new PluginFramework(samconfig);
+
         samconfig.save();
 
         buildRoot = buildRootDir;
@@ -37,13 +40,16 @@ class SAMFramework {
     }
 
     async load() {
+        this.pluginFramework.preTemplateLoad();
         this.template = new SAMTemplate(this.path, buildRoot, samconfig);
         await this.template.reload();
+        this.pluginFramework.postTemplateLoad();
 
         if(samconfig.include_in_builddir) {
             if(!existsSync('.build/root')) {
                 mkdir('.build/root');
             }
+            this.pluginFramework.preCopyIncludes();
             samconfig.include_in_builddir = samconfig.include_in_builddir.split(',');
             samconfig.include_in_builddir.forEach((x, i) => {
                 if(!x) {
@@ -62,6 +68,7 @@ class SAMFramework {
 
                 copyFolder(source, dest);
             });
+            this.pluginFramework.postCopyIncludes();
         }
 
         if(samconfig.skip_init_deploy != 'true') {
@@ -90,7 +97,9 @@ class SAMFramework {
                             return;
                         }
         
+                        this.pluginFramework.preCopyIncludes();
                         copyFolder(source, dest);
+                        this.pluginFramework.postCopyIncludes();
                         modified = true;
                     });
 
@@ -120,21 +129,23 @@ class SAMFramework {
             if (samconfig.build_only != 'true') {
                 let parameters = `--no-fail-on-empty-changeset --no-confirm-changeset --s3-bucket ${samconfig.s3_bucket}`;
                 let paramOverrides = [];
+                const params = this.template.parameters || {};
+                    
                 if(samconfig.base_stack) {
-                    if(this.template.parameters.StackName) {
+                    if(params.StackName) {
                         paramOverrides.push(`StackName=${samconfig.base_stack}`);
                     }
-                    if(this.template.parameters.StackTagName) {
+                    if(params.StackTagName) {
                         paramOverrides.push(`StackTagName=${samconfig.base_stack}`);
                     }
-                    if(this.template.parameters.EnvironmentName) {
+                    if(params.EnvironmentName) {
                         paramOverrides.push(`EnvironmentName=${samconfig.environment}`);
                     }
-                    if(this.template.parameters.EnvironmentTagName) {
+                    if(params.EnvironmentTagName) {
                         paramOverrides.push(`EnvironmentTagName=${samconfig.environment}`);
                     }
                 }
-                Object.keys(this.template.parameters).forEach(k => {
+                Object.keys(params).forEach(k => {
                     if(k == 'StackName' || k =='EnvironmentTagName') {
                         return;
                     }
@@ -143,7 +154,7 @@ class SAMFramework {
                         paramOverrides.push(`${k}=${defaultVal}`);
                     }
                 });
-                if(paramOverrides) {
+                if(paramOverrides && paramOverrides.length > 0) {
                     parameters = `${parameters} --parameter-overrides ${paramOverrides.join(' ')}`;
                 }
 
