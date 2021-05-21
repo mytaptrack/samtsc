@@ -44,7 +44,7 @@ class SAMConfig {
         const parts = readFileSync('samconfig.toml').toString().split('\n');
         const environment = buildFlags['config-env'] || 'default';
 
-        environments = parts.map((x, i) => {
+        const environments = parts.map((x, i) => {
             if(x.match(/\[[\w\.]+\]/)) {
                 return {
                     line: x,
