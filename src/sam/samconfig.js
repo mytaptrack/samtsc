@@ -61,10 +61,12 @@ class SAMConfig {
             throw new Error('Invalid configuration');
         }
 
-        if(currentEnvOffset < environments.length - 1) {
-            parts.splice(environments[currentEnvOffset + 1].index);
+        if(currentEnvOffset.index < environments.length - 1) {
+            parts.splice(environments[currentEnvOffset.index + 1].index);
         }
-        parts.splice(0, environments[currentEnvOffset].index);
+        if(currentEnvOffset.index > 0) {
+            parts.splice(0, currentEnvOffset.index);
+        }
 
         const self = this;
         parts.forEach(x => {
