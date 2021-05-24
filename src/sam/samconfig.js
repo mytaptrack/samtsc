@@ -42,7 +42,7 @@ class SAMConfig {
             return;
         }
         const parts = readFileSync('samconfig.toml').toString().split('\n');
-        const environment = buildFlags['config-env'] || 'default';
+        const environment = buildFlags['config_env'] || 'default';
 
         const environments = parts.map((x, i) => {
             if(x.match(/\[[\w\.]+\]/)) {
@@ -54,18 +54,18 @@ class SAMConfig {
             return null;
         }).filter(x => x != null);
 
-        const currentEnvOffset = environments.find(x => x.line.indexOf(`${environment}.deploy.parameters`) > 0);
+        const currentEnvOffset = environments.findIndex(x => x.line.indexOf(`${environment}.deploy.parameters`) > 0);
 
         if(currentEnvOffset < 0) {
             logger.error('Could not find environment in samconfig.toml');
             throw new Error('Invalid configuration');
         }
 
-        if(currentEnvOffset.index < environments.length - 1) {
-            parts.splice(environments[currentEnvOffset.index + 1].index);
+        if(currentEnvOffset < environments.length - 1) {
+            parts.splice(environments[currentEnvOffset + 1].index);
         }
-        if(currentEnvOffset.index > 0) {
-            parts.splice(0, currentEnvOffset.index);
+        if(currentEnvOffset > 0) {
+            parts.splice(0, environments[currentEnvOffset].index);
         }
 
         const self = this;
