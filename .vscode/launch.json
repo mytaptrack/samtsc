@@ -11,7 +11,7 @@
             "runtimeExecutable": "node",
             "program": "${workspaceFolder}/src/index.js",
             "args": ["--skip-init-deploy", "--environment", "prod"],
-            "cwd": "/Users/nikodykeating/src/services-system-health",
+            "cwd": "C:\\src\\nucleus\\billing-integration",
             "outFiles": [
                 "${workspaceFolder}/**/*.js"
             ]

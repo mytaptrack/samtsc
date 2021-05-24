@@ -1,7 +1,6 @@
 const { existsSync, readFileSync, writeFileSync } = require('../file-system');
 const { resolve } = require('path');
 const { logger } = require('../logger');
-const { readFile } = require('fs');
 
 let stackeryConfig;
 if(process.env.stackery_config) {
@@ -43,6 +42,31 @@ class SAMConfig {
             return;
         }
         const parts = readFileSync('samconfig.toml').toString().split('\n');
+        const environment = buildFlags['config-env'] || 'default';
+
+        const environments = parts.map((x, i) => {
+            if(x.match(/\[[\w\.]+\]/)) {
+                return {
+                    line: x,
+                    index: i
+                };
+            }
+            return null;
+        }).filter(x => x != null);
+
+        const currentEnvOffset = environments.find(x => x.line.indexOf(`${environment}.deploy.parameters`) > 0);
+
+        if(currentEnvOffset < 0) {
+            logger.error('Could not find environment in samconfig.toml');
+            throw new Error('Invalid configuration');
+        }
+
+        if(currentEnvOffset.index < environments.length - 1) {
+            parts.splice(environments[currentEnvOffset.index + 1].index);
+        }
+        if(currentEnvOffset.index > 0) {
+            parts.splice(0, currentEnvOffset.index);
+        }
 
         const self = this;
         parts.forEach(x => {

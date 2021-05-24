@@ -75,6 +75,30 @@ Globals:
               Resource: '*'
 ```
 
+# Process Hooks
+samtsc creates hooks for allowing your own processing to take place around some of the different operations that are performed.  These hooks leverage npm as a plugin definition source and allow you to leverage any tools, scripting or other capabilities you wish to use.
+
+## Defining a hook
+Add your hooks to the package.json file.
+``` json
+{
+   "scripts": {
+      "samtsc-pre-copy-includes": "your script"
+   }
+}
+```
+samtsc then executes the script and sets the environment variable **"config"** with the json configuration being used combining the samconfig.toml with any command line parameters passed in.
+
+``` js
+const config = JSON.parse(process.env.config);
+```
+
+## Existing hooks
+- samtsc-pre-copy-includes
+- samtsc-post-copy-includes
+- samtsc-pre-load-template
+- samtsc-post-load-template
+
 
 # What to expect
 When **samtsc** is first started, it will load your template file and if necessary will attempt to compile your sources to the ".build" directory in your project.  After building the project, **samtsc** will then deploy the full project using the configurations located in the samconfig.toml file.
