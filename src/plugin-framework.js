@@ -1,10 +1,11 @@
 const { execSync } = require('child_process');
+const { readFileSync } = require('./file-system');
 
 class PluginFramework {
     constructor(config, skipPackageLoad) {
        this.config = config;
        if(!skipPackageLoad) {
-        this.rootPackage = JSON.parse(readFileSync('package.json').replace(/\/\/.*/g, ''));
+        this.rootPackage = JSON.parse(readFileSync('package.json').toString().replace(/\/\/.*/g, ''));
        }
        this.execSync = execSync;
     }
