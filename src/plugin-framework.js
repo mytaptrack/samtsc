@@ -5,7 +5,8 @@ class PluginFramework {
     constructor(config, skipPackageLoad) {
        this.config = config;
        if(!skipPackageLoad) {
-        this.rootPackage = JSON.parse(readFileSync('package.json').toString().replace(/\/\/.*/g, ''));
+           const content = readFileSync('package.json').toString().replace(/https?:\/\//g, '\\/\\/').replace(/\/\/.*/g, '');
+           this.rootPackage = JSON.parse(content);
        }
        this.execSync = execSync;
     }
