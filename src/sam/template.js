@@ -84,7 +84,9 @@ class SAMTemplate {
                 if(!template.Parameters[key].Default) {
                     return;
                 }
-                template.Parameters[key].Default = template.Parameters[key].Default.replace(/\<EnvironmentName\>/g, this.samconfig.environment);
+                template.Parameters[key].Default = template.Parameters[key].Default
+                    .replace(/\<EnvironmentName\>/g, this.samconfig.environment)
+                    .replace(/\<DevStack\>/g, this.samconfig.dev_stack? this.samconfig.dev_stack : '');
             });
         }
 
@@ -236,6 +238,9 @@ class SAMTemplate {
         }
         if(this.samconfig.environment && template.Parameters && template.Parameters.EnvironmentName) {
             template.Parameters.EnvironmentName.Default = this.samconfig.environment;
+        }
+        if(this.samconfig.dev_stack && template.Parameters && template.Parameters.DevStackName) {
+            template.Parameters.DevStackName.Default = this.samconfig.dev_stack;
         }
 
         console.log('samtsc: Writing file', buildPath)
