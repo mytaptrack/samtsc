@@ -128,7 +128,7 @@ class SAMConfig {
         if(existsSync('dev.stack.txt')) {
             const addToStack = readFileSync('dev.stack.txt').toString().trim();
             if(addToStack) {
-                this.dev_stack = addToStack;
+                this.dev_stack = `-${addToStack}`;
                 this.stack_name = `${this.stack_name}-${addToStack}`;
                 logger.warn('Setting up developer isolated stack', this.stack_name);
             }
