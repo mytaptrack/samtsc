@@ -86,6 +86,7 @@ class SAMLayer {
 
                     val = val.slice(5);
                     val = resolve(val);
+                    logger.debug('abPath', this.path, val, relative(resolve(this.path), val));
                     this.pck.dependencies[k] = 'file:../' + relative(resolve(this.path), val);
                 });
             }
@@ -116,23 +117,6 @@ class SAMLayer {
                 });
             }
             logger.info('Construction complete');
-        } else if(this.sourcePath == '.') {
-            logger.info('samtsc: Constructing combined dependencies');
-
-            if(this.pck.dependencies && this.pck.dependencies.length > 0) {
-                Object.keys(this.pck.dependencies).forEach(k => {
-                    let val = this.pck.dependencies[k];
-                    if(!val.startsWith('file:')) {
-                        this.pck.dependencies[k] = val;
-                        return;
-                    }
-    
-                    val = val.slice(5);
-                    let abPath = relative(this.path, resolve(val));
-                    this.pck.dependencies[k] = 'file:' + abPath;
-                });
-            }
-            logger.info('samtsc: Construction complete');
         }
 
         this.libs = Object.keys(this.pck.dependencies).filter(k => {
@@ -140,9 +124,10 @@ class SAMLayer {
             if(!d.startsWith('file:')) {
                 return false;
             }
-            const subpath = resolve(this.path, this.packageFolder, d.slice(5));
+            const subpath = resolve(this.path, this.copyToNodeJs? 'nodejs/' : this.packageFolder, d.slice(5));
             if(!subpath.startsWith(process.cwd())) {
                 const localLibDir = resolve(this.buildRoot, 'externals', k);
+                logger.debug('localLibDir', localLibDir);
                 mkdir(localLibDir);
                 if(!existsSync(resolve(localLibDir, 'package.json'))) {
                     logger.info('Creating local link to lib', subpath);
@@ -183,7 +168,7 @@ class SAMLayer {
             logger.debug(d);
             const fullPath = resolve(this.path, this.packageFolder, d);
             const subpath = relative(process.cwd(), fullPath);
-            console.log(subpath);
+            logger.info(subpath);
             return new SAMLayerLib(subpath.replace(/\\/g, '/'), this.samconfig, this.buildRoot, this.events);
         });
 
@@ -209,7 +194,7 @@ class SAMLayer {
 
                 let refPath = val.slice(5);
                 
-                const packFolder = this.sourcePath == '.'? this.path : pckFolder;
+                const packFolder = this.sourcePath == '.'? this.path + '/' + (this.copyToNodeJs? 'nodejs/' : '') : pckFolder;
                 const abPath = resolve(packFolder, refPath);
                 if(abPath.startsWith(process.cwd())) {
                     refPath = resolve(nodejsPath, refPath);
