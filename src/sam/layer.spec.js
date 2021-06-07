@@ -144,5 +144,35 @@ describe('Unit: SAMLayer', () => {
             expect(layer.libs[0].path).toBe('src/library');
             expect(writeFileSync).toBeCalledTimes(2);
         });
+
+        test('Root Layer w/ non-standard library', () => {
+            const { SAMLayer } = require('./layer');
+            existsSync.mockReturnValue(true);
+            readFileSync.mockReturnValueOnce(JSON.stringify({
+                name: 'stack-layer',
+                version: '1.0.0',
+                dependencies: {
+                    'library': 'file:api/library'
+                }
+            }));
+            readFileSync.mockReturnValueOnce(JSON.stringify({
+                "name": "samtsc",
+                "version": "1.0.49",
+                "lockfileVersion": 1,
+                "requires": true,
+                dependencies: {
+                    'library': {
+                        version: 'file:api/library'
+                    }
+                }
+            }));
+            readFileSync.mockReturnValueOnce(JSON.stringify({}));
+            const layer = new SAMLayer('src-layer', { ContentUri: '.' }, { BuildMethod: 'nodejs12.x'}, 'test-stack', '.', { debug: true });
+            expect(layer.pck.dependencies.library).toBe('file:../../../../api/library');
+            expect(layer.sourcePath).toBe('.');
+            expect(layer.libs.length).toBe(1);
+            expect(layer.libs[0].path).toBe('api/library');
+            expect(writeFileSync).toBeCalledTimes(2);
+        });
     });
 });
