@@ -127,7 +127,7 @@ class SAMFramework {
 
             console.log('samtsc: Completed building SAM deployment, deploying with SAM');
             if (samconfig.build_only != 'true') {
-                let parameters = `--no-fail-on-empty-changeset --no-confirm-changeset --s3-bucket ${samconfig.s3_bucket}`;
+                let parameters = `--no-fail-on-empty-changeset --s3-bucket ${samconfig.s3_bucket}`;
                 let paramOverrides = [];
                 const params = this.template.parameters || {};
                     
