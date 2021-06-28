@@ -29,10 +29,12 @@ class SAMFramework {
     constructor(path, buildRootDir, flags) {
         console.log('samtsc: Loading Framework');
         const self = this;
-        samconfig.load(flags, buildRootDir);
+        
+        this.loadPromise = samconfig.load(flags, buildRootDir);
         this.pluginFramework = new PluginFramework(samconfig);
-
-        samconfig.save();
+        this.loadPromise.then(() => {
+            samconfig.save();
+        });
 
         buildRoot = buildRootDir;
         this.buildRoot = buildRoot;
@@ -40,6 +42,7 @@ class SAMFramework {
     }
 
     async load() {
+        await this.loadPromise;
         this.pluginFramework.preTemplateLoad();
         this.template = new SAMTemplate(this.path, buildRoot, samconfig);
         await this.template.reload();

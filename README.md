@@ -46,6 +46,7 @@ Any value in the samconfig.toml can be overridden by attaching -- before the var
 | --skip-init-deploy | This flag skips the initial SAM deployment speeding the start time.  The negative aspect is that if there are new resources, they won't be deployed which could cause debugging issues | skip_init_deploy = "true" |
 | --stack_reference_layer stackLayerResourceName | This property leverages the prod dependencies defined in the root package.json to construct the dependencies in the layer.  Installing dependencies at the root also makes those dependencies available for all your lambda functions. | stack_reference_layer = "stackLayerResourceName" |
 | --include_in_builddir | This value is a comma delimted list of directories to copy to the build directory | include_in_builddir = "./path1,./path2" |
+| --s3-bucket-parm | This is the name of a parameter store entry which contains the deployment bucket | s3_bucket_parm = "/deployment/bucket/name" |
 
 # Developer Stack
 When multiple developers are working on the same stack, it can get challenging if they overwrite each other's changes.  For this purpose, developers can use the file

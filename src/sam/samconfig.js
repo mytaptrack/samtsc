@@ -1,6 +1,7 @@
 const { existsSync, readFileSync, writeFileSync } = require('../file-system');
 const { resolve } = require('path');
 const { logger } = require('../logger');
+const { SSM } = require('aws-sdk');
 
 let stackeryConfig;
 if(process.env.stackery_config) {
@@ -35,7 +36,7 @@ class SAMConfig {
         );
     }
 
-    load(buildFlags, buildRoot) {
+    async load(buildFlags, buildRoot) {
         this.buildRoot = buildRoot;
         if(!existsSync('samconfig.toml')) {
             console.error('samtsc: no sam config file found');
@@ -88,6 +89,16 @@ class SAMConfig {
         Object.keys(buildFlags).forEach(key => {
             self[key] = buildFlags[key];
         });
+        if(!this.s3_bucket && this.s3_bucket_parm) {
+            logger.info('Loading bucket from parameter');
+            const ssm = new SSM({ region: this.region });
+            const parm = await ssm.getParameter({
+                Name: this.s3_bucket_parm
+            }).promise();
+            if(parm) {
+                this.s3_bucket = parm.Parameter.Value;
+            }
+        }
 
         if(stackeryConfig) {
             this.base_stack = stackeryConfig.stackName;
