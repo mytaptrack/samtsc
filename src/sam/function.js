@@ -3,11 +3,12 @@ const { logger } = require('../logger');
 const { EventEmitter } = require('events');
 
 class SAMFunction {
-    constructor(name, properties, globalUri, samconfig) {
+    constructor(name, properties, globalUri, samconfig, stackName, stackResources) {
         this.name = name;
+        this.stackName = stackName;
+        this.stackResources = stackResources;
         this.samconfig = samconfig;
         this.lambda = new aws.Lambda({ region: samconfig.region });
-        this.cf = new aws.CloudFormation({ region: samconfig.region });
         this.events = new EventEmitter();
         this.setConfig(properties, globalUri);
         const self = this;
@@ -52,17 +53,7 @@ class SAMFunction {
             const self = this;
             console.log('samtsc: Deploying function', this.name);
             if(!this.functionName) {
-                let nextToken;
-                let resource;
-                do {
-                    const result = await this.cf.listStackResources({
-                        StackName: this.samconfig.stack_name,
-                        NextToken: nextToken
-                    }).promise();
-                    nextToken = result.NextToken;
-                    resource = result.StackResourceSummaries.find(x => x.LogicalResourceId == self.name);
-                    
-                } while(!resource && nextToken);
+                const resource = this.stackResources.find(x => x.LogicalResourceId == self.name);
                 if(!resource) {
                     console.log('samtsc: Could not find function name');
                     throw new Error('No function name found');

@@ -44,7 +44,7 @@ class SAMFramework {
     async load() {
         await this.loadPromise;
         this.pluginFramework.preTemplateLoad();
-        this.template = new SAMTemplate(this.path, buildRoot, samconfig);
+        this.template = new SAMTemplate(this.path, buildRoot, samconfig, samconfig.stack_name);
         await this.template.reload();
         this.pluginFramework.postTemplateLoad();
 

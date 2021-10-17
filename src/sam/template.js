@@ -1,6 +1,6 @@
 const yaml = require('js-yaml');
-const { existsSync, writeFileSync, readFileSync, unlinkSync } = require('../file-system');
-const { relative } = require('path');
+const { existsSync, writeFileSync, readFileSync, unlinkSync, mkdir } = require('../file-system');
+const { relative, resolve } = require('path');
 const cfSchema = require('cloudformation-js-yaml-schema');
 const aws = require('aws-sdk');
 const { logger } = require('../logger');
@@ -18,12 +18,14 @@ function filterRefs(array) {
 }
 
 class SAMTemplate {
-    constructor(path, buildRoot, samconfig) {
+    constructor(path, buildRoot, samconfig, stackName, isSubstack) {
         this.samconfig = samconfig;
+        this.stackName = stackName;
         this.path = path;
         this.buildRoot = buildRoot;
         this.events = new EventEmitter();
         this.ssm = new aws.SSM({ region: samconfig.region });
+        this.cf = new aws.CloudFormation({ region: samconfig.region });
     }
 
     cleanup() {
@@ -41,35 +43,61 @@ class SAMTemplate {
             writeCacheFile(this.path, true);
         }
 
-        Object.values(this.compiledDirectories).forEach(d => {
-            const subpath = relative(d.path, filePath);
-            if(!subpath.startsWith('..')) {
-                d.fileEvent(subpath);
-            }
-        });
-        this.layers.forEach(l => {
-            const subpath = relative(l.path, filePath);
-            if(!subpath.startsWith('..')) {
-                l.fileEvent(subpath);
-            }
+        if(this.substacks) {
+            this.substacks.forEach(x => x.fileEvent(filePath));
+        }
+        if(this.compiledDirectories) {
+            Object.values(this.compiledDirectories).forEach(d => {
+                const subpath = relative(d.path, filePath);
+                if(!subpath.startsWith('..')) {
+                    d.fileEvent(subpath);
+                }
+            });
+        }
+        if(this.layers) {
+            this.layers.forEach(l => {
+                const subpath = relative(l.path, filePath);
+                if(!subpath.startsWith('..')) {
+                    l.fileEvent(subpath);
+                }
 
-            if(l.libs) {
-                l.libs.forEach(d => {
-                    const subpath = relative(d.path, filePath);
-                    if(!subpath.startsWith('..')) {
-                        d.fileEvent(subpath);
-                    }
-                });
-            }
-        });
+                if(l.libs) {
+                    l.libs.forEach(d => {
+                        const subpath = relative(d.path, filePath);
+                        if(!subpath.startsWith('..')) {
+                            d.fileEvent(subpath);
+                        }
+                    });
+                }
+            });
+        }
     }
 
     async reload() {
         console.log('samtsc: Loading Template', this.path);
-        if(!existsSync('samconfig.toml')) {
+        if(!this.isSubstack && !existsSync('samconfig.toml')) {
             throw new Error('No samconfig.toml found for default deployment configurations');
         }
         this.samconfig.save();
+
+        let nextToken;
+        const resources = [];
+        if(this.stackName) {
+            try {
+                do {
+                    const result = await this.cf.listStackResources({
+                        StackName: this.stackName,
+                        NextToken: nextToken
+                    }).promise();
+                    nextToken = result.NextToken;
+                    if(result.StackResourceSummaries) {
+                        resources.push(...result.StackResourceSummaries);
+                    }
+                } while(nextToken);
+            } catch (err) {
+                logger.error(err);
+            }
+        }
 
         const content = readFileSync(this.path).toString();
         console.log('File read');
@@ -123,6 +151,25 @@ class SAMTemplate {
         });
 
 
+        const applicationKeys = Object.keys(template.Resources)
+            .filter(key => template.Resources[key].Type == 'AWS::Serverless::Application');
+        if(applicationKeys && applicationKeys.length > 0) {
+            this.substacks = applicationKeys.map(key => {
+                const resource = resources.find(x => x.LogicalResourceId == key);
+                let substackName = '';
+                if(resource) {
+                    substackName = resource.PhysicalResourceId;
+                }
+                const location = template.Resources[key].Properties.Location;
+                const retval = new SAMTemplate(location, this.buildRoot, this.samconfig, substackName, true);
+                retval.events.on('template-update', () => {
+                    self.events.emit('template-update', self);
+                });
+                return retval;
+            });
+            await Promise.all(this.substacks.map(x => x.reload()));
+        }
+
         if(!this.compiledDirectories) {
             this.compiledDirectories = {};
         }
@@ -138,7 +185,7 @@ class SAMTemplate {
                 if(samFunc) {
                     samFunc.setConfig(resource.Properties, globalUri);
                 } else {
-                    samFunc = new SAMFunction(key, resource.Properties, globalUri, self.samconfig);
+                    samFunc = new SAMFunction(key, resource.Properties, globalUri, self.samconfig, this.stackName, resources);
                     this.functions.push(samFunc);
                 }
                 let compDir = this.compiledDirectories[samFunc.path];
@@ -200,8 +247,14 @@ class SAMTemplate {
         }
 
         const buildPath = `${this.buildRoot}/${this.path}`;
-        if(existsSync(buildPath)) {
-            unlinkSync(buildPath);
+        const absPath = resolve(buildPath);
+        if(existsSync(absPath)) {
+            logger.debug('File exists', absPath);
+            unlinkSync(absPath);
+        }
+        const folder = relative(buildPath, '..');
+        if(!existsSync(folder)) {
+            mkdir(folder);
         }
 
         if(this.samconfig.marker_tag) {
