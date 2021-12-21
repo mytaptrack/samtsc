@@ -14,7 +14,7 @@ function buildPackageJson(source, buildRoot) {
                 const res = resolve(source, subPrefix);
                 pck.dependencies[key] = `file:${res}`;
             } else if(pck.dependencies[key].startsWith('^') || pck.dependencies[key].startsWith('~')) {
-                pck.dependencies[key].splice(1);
+                pck.dependencies[key] = pck.dependencies[key].slice(1);
             }
         });
     }

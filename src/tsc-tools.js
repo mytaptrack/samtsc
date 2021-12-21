@@ -61,6 +61,7 @@ function writeCacheFile(sourcePath, memoryOnly) {
 function execOnlyShowErrors(command, options) {
     const buffer = [];
     try {
+        console.log('execOnlyShowErrors', command, options);
         execSync(command, { stdio: 'pipe', ...options });
     } catch (err) {
         console.log('samtsc: exec error');

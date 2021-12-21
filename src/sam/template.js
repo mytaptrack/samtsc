@@ -23,6 +23,10 @@ class SAMTemplate {
         this.stackName = stackName;
         this.path = path;
         this.buildRoot = buildRoot;
+
+        const lastForwardSlash = path.lastIndexOf('/');
+        this.stackDir = lastForwardSlash > 0? path.slice(0, lastForwardSlash) : ".";
+        
         this.events = new EventEmitter();
         this.ssm = new aws.SSM({ region: samconfig.region });
         this.cf = new aws.CloudFormation({ region: samconfig.region });
@@ -191,7 +195,8 @@ class SAMTemplate {
                 let compDir = this.compiledDirectories[samFunc.path];
                 if(!compDir) {
                     console.log('samtsc: Constructing directory to compile', samFunc.path);
-                    compDir = new SAMCompiledDirectory(samFunc.path, this.samconfig, this.buildRoot);
+                    const dirPath = relative('.', resolve(this.stackDir, samFunc.path));
+                    compDir = new SAMCompiledDirectory(dirPath, this.samconfig, this.buildRoot);
                     compDir.installAtLeastOnce();
                     compDir.build(undefined, true);
                     this.compiledDirectories[samFunc.path] = compDir;
