@@ -29,6 +29,19 @@ describe('System: template', () => {
             }
         });
 
+        test('Load template in subdir', async () => {
+            const template = new SAMTemplate('subdir/template.yml', buildRoot, samconfig);
+            try {
+                await template.reload();
+                
+                expect(existsSync('.build/hash/src-subdir-function1')).toBeTruthy();
+            } catch (err) {
+                console.log(err);
+            } finally {
+                template.cleanup();
+            }
+        });
+
         test('Load twice', async () => {
             jest.setTimeout(3 * 60 * 1000);
             let function1Dir;
@@ -76,6 +89,6 @@ describe('System: template', () => {
             } finally {
                 template.cleanup();
             }
-        });
+        }, 30 * 60 * 1000);
     });
 });

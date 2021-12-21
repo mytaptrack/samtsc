@@ -12,7 +12,8 @@
         "samtsc": "src/index.js"
     },
     "scripts": {
-        "test": "npx jest",
+        "pretest": "rm -R .test",
+        "test": "npx jest --runInBand",
         "test:seperate": "npx jest --testNamePattern=System && npx jest --testNamePattern=Unit",
         "coveralls": "jest --coverage && cat ./tests/coverage/lcov.info | coveralls"
     },
@@ -33,6 +34,7 @@
     "devDependencies": {
         "@types/jest": "^27.0.2",
         "jest": "^27.3.0",
+        "jest-runner": "^27.4.5",
         "jest-serial-runner": "^1.2.0"
     }
 }
