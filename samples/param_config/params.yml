@@ -1,0 +1,6 @@
+defaults:
+  value1: this is a test
+  value2: 200
+env:
+  regions: [us-west-1, us-west-2]
+  overwrite: pre-value

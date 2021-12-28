@@ -22,7 +22,9 @@
         "aws-sdk": "^2.834.0",
         "cloudformation-js-yaml-schema": "^0.4.2",
         "js-yaml": "^4.0.0",
-        "moment": "^2.29.1"
+        "lodash": "^4.17.21",
+        "moment": "^2.29.1",
+        "yaml": "^1.10.2"
     },
     "keywords": [
         "AWS",

@@ -46,7 +46,7 @@ function syncFolder(sourceDir, outDir, excludeArray = []) {
         const sourceSub = path.resolve(sourceDir, f.name);
         const destSub = path.resolve(outDir, f.name);
         
-        if(f.isDirectory()) {
+        if(f.isDirectory() || f.isSymbolicLink()) {
             copyFolder(sourceSub, destSub);
         } else {
             const sourceStat = fs.lstatSync(sourceSub);
@@ -76,7 +76,7 @@ function copyFolder(sourceDir, outDir, excludeArray = []) {
         const sourceSub = path.resolve(sourceDir, f.name);
         const destSub = path.resolve(outDir, f.name);
         
-        if(f.isDirectory()) {
+        if(f.isDirectory() || f.isSymbolicLink()) {
             copyFolder(sourceSub, destSub);
         } else {
             if(fs.existsSync(destSub)) {

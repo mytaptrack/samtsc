@@ -36,6 +36,12 @@ try {
         }
     }
 
+    if (process.argv[1] == 'params') {
+        if(process.argv[2] == 'get') {
+        } else if (process.argv[2] == 'put') {
+        }
+    }
+
     const framework = new SAMFramework(templateFile, buildDir, flags)
 
     framework.load()
