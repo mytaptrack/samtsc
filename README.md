@@ -105,3 +105,48 @@ const config = JSON.parse(process.env.config);
 When **samtsc** is first started, it will load your template file and if necessary will attempt to compile your sources to the ".build" directory in your project.  After building the project, **samtsc** will then deploy the full project using the configurations located in the samconfig.toml file.
 
 After the first deployment is complete the system will monitor file changes and compile and deploy only the functions that change.  If a layer is changed then **samtsc** will build the layer update and deploy the update across all the local functions in the stack that use that layer.
+
+# Parameter Management
+samtsc can help you manage your parameter store values more easily. This is done by using samtsc to extract your parameter store into a yaml file, which will supply a representation of your parameter store in a yaml format. After extracting, you can manage your parameters on either a per environment basis, or by having a single set of parameters across all your environments, and then overwriting those values on a per environment basis.
+
+This allows teams to manage parameters in source control for integrations and manage their environments more easily while still benefiting from the capabilities of the aws parameter store.
+
+## Parameters
+| required | samconfig.toml | parameter | description |
+| --- | --- | --- | --- |
+| no | params_output | --params-output | The output file or directory for the parameters file to be extracted to |
+| no | params_dir | --params-dir | The output directory for the parameters file to be extracted to. Output file will be named params_${environment name}.yml |
+| no | params_keys | --params-keys | Use this option to specify a comma delimited list of keys to be extracted and imported. The when /env/ is used, it will be modified to the environment name being exported or imported into.
+| no | params_clean | --params-clean | Set this value to true in order to remove keys previously set but no longer present in the configuration. This will also remove values created by other sources, so only use it if you know what you're doing.
+
+
+## Extracting parameters
+Either set your parameters in your samconfig.toml or pass them in as parameters.
+
+``` !bash
+samtsc params get
+```
+
+## Importing parameters
+Importing parameters will merge your existing parameters from your file with the parameters already stored in your parameter store. This is not true if you use clean.
+
+To import your parameters run the following command.
+``` !bash
+samtsc params put
+```
+
+### Rollups
+As part of putting your parameters into parameter store, values will automatically get rolled up as well in JSON.
+
+Example:
+``` yml
+test:
+   val1: 1
+   val2: "Test 2"
+```
+Becomes the following parameters:
+- /test = '{ "val1": 1, "val2": "Test 2"}'
+- /test/val1 = '1'
+- /test/val2 = 'Test 2'
+
+This allows services to access either a single value or multiple values with ease.

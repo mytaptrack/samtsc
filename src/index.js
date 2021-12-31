@@ -4,6 +4,7 @@ try {
     const fs = require('./file-system');
     const { exit, stdin } = require('process');
     const { SAMFramework } = require('./framework');
+    const { logger } = require('./logger');
 
     console.log('Checking template file');
     let templateFile;
@@ -36,10 +37,29 @@ try {
         }
     }
 
-    if (process.argv[1] == 'params') {
-        if(process.argv[2] == 'get') {
-        } else if (process.argv[2] == 'put') {
+    console.log(process.argv);
+    if (process.argv[2] == 'params' || process.argv[1] == 'params') {
+        const { ssmParamsToYaml, mergeFilesWithEnv } = require('./params/param-management');
+        const { samconfig } = require('./sam/samconfig');
+        samconfig.load(flags, buildDir);
+        if(!samconfig.params_output && !samconfig.params_dir) {
+            logger.error('Error: Missing value for params output or params dir. Please set params_output or params_dir in samconfig.toml or pass --params-output or --params-dir');
+            return;
         }
+        if(process.argv[3] == 'get' || process.argv[2] == 'get') {
+            logger.info('Getting params');
+            ssmParamsToYaml(samconfig)
+            .then(() => {
+                logger.info('Complete');
+            });
+        } else if (process.argv[3] == 'put' || process.argv[2] == 'put') {
+            logger.info('Putting params');
+            mergeFilesWithEnv(samconfig)
+            .then(() => {
+                logger.info('Complete');
+            });
+        }
+        return;
     }
 
     const framework = new SAMFramework(templateFile, buildDir, flags)
