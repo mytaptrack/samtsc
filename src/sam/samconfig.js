@@ -90,13 +90,17 @@ class SAMConfig {
             self[key] = buildFlags[key];
         });
         if(!this.s3_bucket && this.s3_bucket_parm) {
-            logger.info('Loading bucket from parameter');
+            logger.info('Loading bucket from parameter', this.region, buildFlags);
             const ssm = new SSM({ region: this.region });
-            const parm = await ssm.getParameter({
-                Name: this.s3_bucket_parm
-            }).promise();
-            if(parm) {
-                this.s3_bucket = parm.Parameter.Value;
+            try {
+                const parm = await ssm.getParameter({
+                    Name: this.s3_bucket_parm
+                }).promise();
+                if(parm) {
+                    this.s3_bucket = parm.Parameter.Value;
+                }
+            } catch (err) {
+                logger.warn('Bucket param could not be retrieved');
             }
         }
 

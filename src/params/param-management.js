@@ -77,8 +77,8 @@ function deleteKey(obj, keyParts) {
     }
 }
 
-async function ssmParamsToObj() {
-    const ssm = new aws.SSM();
+async function ssmParamsToObj(samconfig) {
+    const ssm = new aws.SSM({ region: samconfig.region });
     let token;
     const parameters = [];
     do {
@@ -108,7 +108,7 @@ async function ssmParamsToObj() {
 
 async function ssmParamsToYaml(samconfig, skipWrite) {
     const paramKeys = samconfig.params_keys? samconfig.params_keys.split(',') : undefined;
-    let retval = await ssmParamsToObj();
+    let retval = await ssmParamsToObj(samconfig);
     if (paramKeys) {
         logger.info('Filtering data to specific keys', paramKeys);
         const old = retval;
@@ -142,7 +142,7 @@ async function ssmParamsToYaml(samconfig, skipWrite) {
     return data;
 }
 
-function readParamConfigs(sourceDir, environment) {
+function readParamConfigs(sourceDir, environment, region) {
     let genericPath = '';
     if(sourceDir.endsWith('.yml' || sourceDir.endsWith('yaml'))) {
         genericPath = sourceDir;
@@ -162,47 +162,59 @@ function readParamConfigs(sourceDir, environment) {
         envPath = path.resolve(sourceDir, `params_${environment}.yaml`);
     }
 
+    let envRegionPath = '';
+    if (fs.existsSync(path.resolve(sourceDir, `params_${environment}.${region}.yml`))) {
+        envRegionPath = path.resolve(sourceDir, `params_${environment}.${region}.yml`);
+    } else if (fs.existsSync(path.resolve(sourceDir, `params_${environment}.${region}.yaml`))) {
+        envRegionPath = path.resolve(sourceDir, `params_${environment}.${region}.yaml`);
+    }
+
     const envData = envPath? fs.readFileSync(envPath).toString() : '';
     const envObj = envData? yaml.parse(envData) :  {};
-    const retval = _.mergeWith(genObj, envObj);
+    let retval = _.mergeWith(genObj, envObj);
+
+    const envRegionData = envRegionPath? fs.readFileSync(envRegionPath).toString() : '';
+    const envRegionObj = envRegionData? yaml.parse(envRegionData) :  {};
+    retval = _.mergeWith(retval, envRegionObj);
 
     return retval;
 }
 
-async function deleteParamTree(obj, pathRoot) {
-    const ssm = new aws.SSM();
+async function deleteParamTree(obj, pathRoot, samconfig) {
+    const ssm = new aws.SSM({ region: samconfig.region });
     await Promise.all(Object.keys(obj).map(async key => {
         await ssm.deleteParameter({
             Name: `${pathRoot}${key}`
         }).promise();
         if(Object.keys(obj[key]).length != 0) {
-            await deleteParamTree(obj[key], `${pathRoot}${key}/`);
+            await deleteParamTree(obj[key], `${pathRoot}${key}/`, samconfig);
         }
     }));
 }
 
-async function writeToSSM(updates, ssmConfig, pathRoot, cleanUp) {
-    const ssm = new aws.SSM();
+async function writeToSSM(updates, ssmConfig, pathRoot, cleanUp, samconfig) {
+    const ssm = new aws.SSM({ region: samconfig.region });
     await Promise.all(Object.keys(updates).map(async objKey => {
         const key = objKey == 'env'? samconfig.environment : objKey;
 
-        logger.debug('Evaluating path', key, updates[key], ssmConfig? ssmConfig[key] : undefined);
+        logger.debug('Evaluating path', key);
 
-        if(!_.isEqual(updates[key], ssmConfig? ssmConfig[key] : undefined)) {
-            if(Array.isArray(updates[key]) || typeof updates[key] == 'string' || Object.keys(updates[key]).length == 0) {
+        if(!_.isEqual(updates[objKey], ssmConfig? ssmConfig[key] : undefined)) {
+            if(Array.isArray(updates[objKey]) || typeof updates[objKey] == 'string' || Object.keys(updates[objKey]).length == 0) {
+                logger.debug('Writing value for ', key, updates[objKey]);
                 await ssm.putParameter({
                     Name: `${pathRoot}${key}`,
-                    Value: Array.isArray(updates[key])? updates[key] : updates[key].toString(),
-                    Type: Array.isArray(updates[key])? 'StringList' : 'String',
+                    Value: Array.isArray(updates[objKey])? updates[objKey] : updates[objKey].toString(),
+                    Type: Array.isArray(updates[objKey])? 'StringList' : 'String',
                     Overwrite: true
                 }).promise();
             } else {
                 logger.debug('Cascading key', key);
-                const body = JSON.stringify(updates[key]);
+                const body = JSON.stringify(updates[objKey]);
                 if(Buffer.from(body).byteLength < 4000) {
                     const params = {
                         Name: `${pathRoot}${key}`,
-                        Value: JSON.stringify(updates[key]),
+                        Value: JSON.stringify(updates[objKey]),
                         Type: 'String',
                         Overwrite: true
                     };
@@ -211,8 +223,10 @@ async function writeToSSM(updates, ssmConfig, pathRoot, cleanUp) {
                 } else {
                     logger.warn('Object larger than 4 kb, skipping writing rollup');
                 }
-                await writeToSSM(updates[key], ssmConfig? ssmConfig[key] : undefined, `${pathRoot}${key}/`);
+                await writeToSSM(updates[objKey], ssmConfig? ssmConfig[key] : undefined, `${pathRoot}${key}/`, cleanUp, samconfig);
             }
+        } else {
+            var i = 0;
         }
     }));
 
@@ -223,7 +237,7 @@ async function writeToSSM(updates, ssmConfig, pathRoot, cleanUp) {
                     Name: `${pathRoot}${key}`
                 }).promise();
                 if(Object.keys(ssmConfig[key]).length != 0) {
-                    await deleteParamTree(ssmConfig[key], `${pathRoot}${key}/`);
+                    await deleteParamTree(ssmConfig[key], `${pathRoot}${key}/`, samconfig);
                 }
             }
         }));    
@@ -232,10 +246,10 @@ async function writeToSSM(updates, ssmConfig, pathRoot, cleanUp) {
 
 async function mergeFilesWithEnv(samconfig) {
     logger.debug('Reading param config');
-    const localConfig = readParamConfigs(samconfig.params_output || samconfig.params_dir, samconfig.environment);
+    const localConfig = readParamConfigs(samconfig.params_output || samconfig.params_dir, samconfig.environment, samconfig.region);
     logger.debug('Local values', localConfig);
     logger.debug('Getting ssm params');
-    const ssmConfig = await ssmParamsToObj();
+    const ssmConfig = await ssmParamsToObj(samconfig);
     const ssmClone = _.cloneDeep(ssmConfig);
     const clean = samconfig.params_clean == 'true'
     const paramKeys = samconfig.params_keys? samconfig.params_keys.split(',') : undefined;
@@ -265,7 +279,7 @@ async function mergeFilesWithEnv(samconfig) {
 
     const results = _.mergeWith(ssmClone, _.cloneDeep(localConfig));
 
-    await writeToSSM(results, ssmConfig, '/', clean);
+    await writeToSSM(results, ssmConfig, '/', clean, samconfig);
 }
 
 module.exports.ssmParamsToObj = ssmParamsToObj;

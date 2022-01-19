@@ -5,8 +5,10 @@ const aws = require('aws-sdk');
 
 let paramRetval = [];
 const getParameters = jest.fn();
+const getParameter = jest.fn();
 const putParameter = jest.fn();
 const deleteParameter = jest.fn();
+const describeParameters = jest.fn();
 
 function resetMocks() {
     jest.resetAllMocks();
@@ -31,13 +33,37 @@ function resetMocks() {
             promise: async () => {}
         };
     });
+
+    describeParameters.mockImplementation(() => {
+        return {
+            promise: async () => {
+                return {
+                    Parameters: paramRetval
+                }
+            }
+        }
+    });
+
+    getParameter.mockImplementation((request) => {
+        return {
+            promise: async () => {
+                return {
+                    Parameter: {
+                        Value: paramRetval.find(x => x.Name == request.Name).Value
+                    }
+                }
+            }
+        }
+    });
 }
 
 class SSM {
     constructor() {
         this.getParameters = getParameters;
+        this.getParameter = getParameter;
         this.putParameter = putParameter;
         this.deleteParameter = deleteParameter;
+        this.describeParameters = describeParameters;
     }
 }
 aws.SSM = SSM;
@@ -46,7 +72,9 @@ const mgt = require('./param-management');
 describe('params', () => {
     describe('param-management', () => {
         describe('setKey', () => {
-            beforeEach(() => { resetMocks(); });
+            beforeEach(() => { 
+                resetMocks(); 
+            });
             test('Key as JSON', () => {
                 const val = {};
                 mgt.paramsSetKey(val, ['key'], '{ "test":"val" }');
@@ -68,6 +96,9 @@ describe('params', () => {
             });    
         });
         describe('ssmParamsToObj', () => {
+            beforeEach(() => { 
+                resetMocks(); 
+            });
             test('Complex Object', async () => {
                 paramRetval = [
                     { Name: '/test', Value: '{ "path": { "to": { "val": "Test" } }, "second": "value" }' },
@@ -155,16 +186,17 @@ describe('params', () => {
         describe('readParamConfigs', () => {
             beforeEach(() => { resetMocks(); });
             test('Read dev env', () => {
-                const object = mgt.readParamConfigs('samples/param_config', 'dev');
+                const object = mgt.readParamConfigs('samples/param_config', 'dev', 'us-west-2');
                 expect(object.env.integration.server).toBe('127.0.0.1');
                 expect(object.env.regions).toMatchObject(['us-west-1','us-west-2']);
                 expect(object.env.overwrite).toBe('post-value-1');
                 expect(object.defaults.value1).toBe('this is a test');
+                expect(object.env.regional.value).toBe('regional value');
                 expect(object.defaults.value2).toBe(200);
             });
 
             test('Read tst env', () => {
-                const object = mgt.readParamConfigs('samples/param_config', 'tst');
+                const object = mgt.readParamConfigs('samples/param_config', 'tst', 'us-west-2');
                 expect(object.env.integration.server).toBe('127.0.0.2');
                 expect(object.env.regions).toMatchObject(['us-west-1','us-west-2']);
                 expect(object.env.overwrite).toBe('post-value-2');
@@ -174,7 +206,7 @@ describe('params', () => {
 
             test('Env file does not exist', () => {
 
-                const object = mgt.readParamConfigs('samples/param_config', 'foo');
+                const object = mgt.readParamConfigs('samples/param_config', 'foo', 'us-west-2');
                 expect(object.env.integration).toBeUndefined();
                 expect(object.env.overwrite).toBe('pre-value');
                 expect(object.env.regions).toMatchObject(['us-west-1','us-west-2']);
@@ -183,17 +215,19 @@ describe('params', () => {
             });
 
             test('Directory does not exist', () => {
-                const object = mgt.readParamConfigs('samples/param_config_does_not_exist', 'foo');
+                const object = mgt.readParamConfigs('samples/param_config_does_not_exist', 'foo', 'us-west-2');
                 expect(object.env).toBeUndefined();
                 expect(object.defaults).toBeUndefined();
             });
         });
         describe('mergeFilesWithEnv', () => {
-            beforeEach(() => { resetMocks(); });
+            beforeEach(() => { 
+                resetMocks(); 
+            });
             test('All new', async () => {
                 paramRetval = [];
-
-                await mgt.mergeFilesWithEnv({ environment: 'dev', params_dir: 'samples/param_config' });
+                
+                await mgt.mergeFilesWithEnv({ environment: 'dev', params_dir: 'samples/param_config', params_clean: true });
                 expect(putParameter).toBeCalledTimes(9);
             });
 
@@ -231,12 +265,12 @@ describe('params', () => {
                     { Name: '/defaults/value1', Value: 'this is a test' },
                     { Name: '/defaults/value2', Value: '200' },
                     { Name: '/defaults/value3', Value: '400' },
-                    { Name: '/env', Value: '{ "integration": {"server": "127.0.0.1", "port": 8000}, "overwrite":"post-value-1", "regions": ["us-west-1", "us-west-2"]}'},
-                    { Name: '/env/integration', Value: '{"server": "127.0.0.1", "port": 8000}'},
-                    { Name: '/env/integration/server', Value: '127.0.0.1'},
-                    { Name: '/env/integration/port', Value: '8000'},
-                    { Name: '/env/overwrite', Value: 'post-value-1'},
-                    { Name: '/env/regions', Value: '["us-west-1", "us-west-2"]'},
+                    { Name: '/dev', Value: '{ "integration": {"server": "127.0.0.1", "port": 8000}, "overwrite":"post-value-1", "regions": ["us-west-1", "us-west-2"]}'},
+                    { Name: '/dev/integration', Value: '{"server": "127.0.0.1", "port": 8000}'},
+                    { Name: '/dev/integration/server', Value: '127.0.0.1'},
+                    { Name: '/dev/integration/port', Value: '8000'},
+                    { Name: '/dev/overwrite', Value: 'post-value-1'},
+                    { Name: '/dev/regions', Value: '["us-west-1", "us-west-2"]'},
                 ];
 
                 await mgt.mergeFilesWithEnv({ environment: 'dev', params_dir: 'samples/param_config', params_keys: '/defaults', params_clean: 'true' });
@@ -250,12 +284,12 @@ describe('params', () => {
                     { Name: '/defaults/value1', Value: 'this is a test' },
                     { Name: '/defaults/value2', Value: '200' },
                     { Name: '/defaults/value3', Value: '400' },
-                    { Name: '/env', Value: '{ "integration": {"server": "127.0.0.1", "port": 8000}, "overwrite":"post-value-1", "regions": ["us-west-1", "us-west-2"]}'},
-                    { Name: '/env/integration', Value: '{"server": "127.0.0.1", "port": 8000}'},
-                    { Name: '/env/integration/server', Value: '127.0.0.1'},
-                    { Name: '/env/integration/port', Value: '8000'},
-                    { Name: '/env/overwrite', Value: 'post-value-1'},
-                    { Name: '/env/regions', Value: '["us-west-1", "us-west-2"]'},
+                    { Name: '/dev', Value: '{ "integration": {"server": "127.0.0.1", "port": 8000}, "overwrite":"post-value-1", "regions": ["us-west-1", "us-west-2"]}'},
+                    { Name: '/dev/integration', Value: '{"server": "127.0.0.1", "port": 8000}'},
+                    { Name: '/dev/integration/server', Value: '127.0.0.1'},
+                    { Name: '/dev/integration/port', Value: '8000'},
+                    { Name: '/dev/overwrite', Value: 'post-value-1'},
+                    { Name: '/dev/regions', Value: '["us-west-1", "us-west-2"]'},
                 ];
 
                 await mgt.mergeFilesWithEnv({ environment: 'dev', params_dir: 'samples/param_config', params_keys: '/defaults', params_clean: 'false' });

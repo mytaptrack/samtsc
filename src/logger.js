@@ -1,5 +1,6 @@
 class Logger {
     constructor() {
+        this.samconfig = {};
     }
     loadConfig(samconfig) {
         this.samconfig = samconfig;
