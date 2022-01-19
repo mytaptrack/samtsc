@@ -111,7 +111,7 @@ describe('params', () => {
                     { Name: '/test/second', Value: 'value' }
                 ];
 
-                const object = await mgt.ssmParamsToObj();
+                const object = await mgt.ssmParamsToObj({});
 
                 expect(object.test.path.to.val).toBe('Test');
                 expect(object.test.second).toBe('value');
@@ -129,7 +129,7 @@ describe('params', () => {
                     { Name: '/test/second', Value: 'This is a new value' }
                 ];
 
-                const object = await mgt.ssmParamsToObj();
+                const object = await mgt.ssmParamsToObj({});
 
                 expect(object.test.path.to.val).toBe('Overwritten value');
                 expect(object.test.second).toBe('This is a new value');
@@ -247,12 +247,12 @@ describe('params', () => {
                     { Name: '/defaults', Value: '{"value1": "this is a test", "value2": 200}' },
                     { Name: '/defaults/value1', Value: 'this is a test' },
                     { Name: '/defaults/value2', Value: '200' },
-                    { Name: '/env', Value: '{ "integration": {"server": "127.0.0.1", "port": 8000}, "overwrite":"post-value-1", "regions": ["us-west-1", "us-west-2"]}'},
-                    { Name: '/env/integration', Value: '{"server": "127.0.0.1", "port": 8000}'},
-                    { Name: '/env/integration/server', Value: '127.0.0.1'},
-                    { Name: '/env/integration/port', Value: '8000'},
-                    { Name: '/env/overwrite', Value: 'post-value-1'},
-                    { Name: '/env/regions', Value: '["us-west-1", "us-west-2"]'},
+                    { Name: '/dev', Value: '{ "integration": {"server": "127.0.0.1", "port": 8000}, "overwrite":"post-value-1", "regions": ["us-west-1", "us-west-2"]}'},
+                    { Name: '/dev/integration', Value: '{"server": "127.0.0.1", "port": 8000}'},
+                    { Name: '/dev/integration/server', Value: '127.0.0.1'},
+                    { Name: '/dev/integration/port', Value: '8000'},
+                    { Name: '/dev/overwrite', Value: 'post-value-1'},
+                    { Name: '/dev/regions', Value: '["us-west-1", "us-west-2"]'},
                 ];
 
                 await mgt.mergeFilesWithEnv({ environment: 'dev', params_dir: 'samples/param_config' });
