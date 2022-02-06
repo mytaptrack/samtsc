@@ -181,7 +181,7 @@ class SAMTemplate {
             this.functions = [];
         }
         const functionKeys = Object.keys(template.Resources)
-            .filter(key => template.Resources[key].Type == 'AWS::Serverless::Function');
+        .filter(key => template.Resources[key].Type == 'AWS::Serverless::Function' && !template.Resources[key].Properties.InlineCode);
 
         functionKeys.forEach(key => {
                 const resource = template.Resources[key];
