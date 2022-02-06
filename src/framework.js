@@ -120,6 +120,11 @@ class SAMFramework {
             environments.forEach(env => {
                 copyFileSync(resolve(this.buildRoot, `template-${env}.config`), `dist/cloudformation/template-${env}.config`);
             });
+
+            let parameters = `--s3-bucket ${samconfig.s3_bucket} --s3-prefix ${samconfig.s3_prefix}`;
+            
+            logger.info('packaging');
+            execSync(`sam package ${parameters}`, { cwd: buildRoot, stdio: 'inherit' });
         }
     }
 
@@ -172,6 +177,7 @@ class SAMFramework {
                     parameters = `${parameters} --parameter-overrides ${paramOverrides.join(' ')}`;
                 }
 
+                logger.info('deploying');
                 execSync(`sam deploy ${parameters}`, { cwd: buildRoot, stdio: 'inherit' });
                 console.log('samtsc: deploy complete, waiting for file change');
             }
