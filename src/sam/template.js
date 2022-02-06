@@ -176,7 +176,11 @@ class SAMTemplate {
 
                         // Check if parent stack has this parameter passed in
                         const stack = subStackRef.find(y => y.template == x);
-                        const subParams = stack?.declaration?.Properties?.Parameters;
+                        const subParams = stack && 
+                                            stack.declaration &&
+                                            stack.declaration.Properties &&
+                                            stack.declaration.Properties.Parameters? 
+                                            stack.declaration.Properties.Parameters : undefined;
                         if(subParams && subParams[key]) {
                             return;
                         }

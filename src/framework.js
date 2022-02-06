@@ -143,7 +143,7 @@ class SAMFramework {
                 let paramOverrides = [];
                 const envConf = this.template.templateConfigurations.find(x => x.Tags.environment == samconfig.environment);
                 logger.debug('Env Config', samconfig.environment, JSON.stringify(envConf));
-                const params = envConf?.Parameters || {};
+                const params = envConf? envConf.Parameters || {} : {};
 
                 if(samconfig.base_stack) {
                     if(params.StackName) {
