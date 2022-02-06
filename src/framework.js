@@ -1,7 +1,7 @@
 console.log('samtsc: Loading SAM Framework Tools');
 const { execSync } = require('child_process');
 const { execOnlyShowErrors } = require('./tsc-tools');
-const { mkdir, watch, existsSync, symlinkSync, readFileSync } = require('./file-system');
+const { mkdir, watch, existsSync, symlinkSync, readFileSync, copyFileSync } = require('./file-system');
 const { logger } = require('./logger');
 const { samconfig } = require('./sam/samconfig');
 const { SAMTemplate } = require('./sam/template');
@@ -78,11 +78,11 @@ class SAMFramework {
             this.templateUpdated();
         }
 
-        const self = this;
-        this.template.events.on('layer-change', (source) => { self.templateUpdated(source) });
-        this.template.events.on('template-update', (source) => { self.templateUpdated(); } )
-
-        if(!samconfig.build_only && !samconfig.deploy_only) {
+        if(!samconfig.build_only && !samconfig.package && !samconfig.deploy_only) {
+            const self = this;
+            this.template.events.on('layer-change', (source) => { self.templateUpdated(source) });
+            this.template.events.on('template-update', (source) => { self.templateUpdated(); } )
+    
             this.watcher = watch('.', { recursive: true }, (event, filename) => {
                 this.template.fileEvent(filename);
 
@@ -112,6 +112,15 @@ class SAMFramework {
                 }
             });
         }
+
+        if(samconfig.package) {
+            mkdir("dist/cloudformation");
+            copyFolder(resolve(this.buildRoot, ".aws-sam/build"), 'dist/cloudformation');
+            const environments = samconfig.package && samconfig.environments? samconfig.environments.split(',') : [samconfig.environment];
+            environments.forEach(env => {
+                copyFileSync(resolve(this.buildRoot, `template-${env}.config`), `dist/cloudformation/template-${env}.config`);
+            });
+        }
     }
 
     templateUpdated() {
@@ -129,11 +138,13 @@ class SAMFramework {
             }
 
             console.log('samtsc: Completed building SAM deployment, deploying with SAM');
-            if (samconfig.build_only != 'true') {
+            if (samconfig.build_only != 'true' && samconfig.build_only != true && !samconfig.package ) {
                 let parameters = `--no-fail-on-empty-changeset --s3-bucket ${samconfig.s3_bucket}`;
                 let paramOverrides = [];
-                const params = this.template.parameters || {};
-                    
+                const envConf = this.template.templateConfigurations.find(x => x.Tags.environment == samconfig.environment);
+                logger.debug('Env Config', samconfig.environment, JSON.stringify(envConf));
+                const params = envConf?.Parameters || {};
+
                 if(samconfig.base_stack) {
                     if(params.StackName) {
                         paramOverrides.push(`StackName=${samconfig.base_stack}`);
@@ -152,9 +163,9 @@ class SAMFramework {
                     if(k == 'StackName' || k =='EnvironmentTagName') {
                         return;
                     }
-                    const defaultVal = this.template.parameters[k].Default;
+                    const defaultVal = params[k];
                     if(defaultVal) {
-                        paramOverrides.push(`${k}=${defaultVal}`);
+                        paramOverrides.push(`"${k}=${defaultVal}"`);
                     }
                 });
                 if(paramOverrides && paramOverrides.length > 0) {
@@ -165,7 +176,7 @@ class SAMFramework {
                 console.log('samtsc: deploy complete, waiting for file change');
             }
         } catch (err) {
-            if(samconfig.deploy_only || samconfig.build_only) {
+            if(samconfig.deploy_only || samconfig.build_only || samconfig.package) {
                 throw err;
             } else {
                 console.log(err);

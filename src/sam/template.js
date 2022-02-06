@@ -86,7 +86,7 @@ class SAMTemplate {
 
         let nextToken;
         const resources = [];
-        if(this.stackName) {
+        if(this.stackName && !this.samconfig.package) {
             try {
                 do {
                     const result = await this.cf.listStackResources({
@@ -108,19 +108,7 @@ class SAMTemplate {
         const template = yaml.load(content, {
             schema: cfSchema.CLOUDFORMATION_SCHEMA
         });
-
-        if(this.samconfig.env_aware == 'true' && template.Parameters) {
-            console.log('samtsc: environment aware turned on');
-            Object.keys(template.Parameters)
-            .forEach(key => {
-                if(!template.Parameters[key].Default) {
-                    return;
-                }
-                template.Parameters[key].Default = template.Parameters[key].Default
-                    .replace(/\<EnvironmentName\>/g, this.samconfig.environment)
-                    .replace(/\<DevStack\>/g, this.samconfig.dev_stack? this.samconfig.dev_stack : '');
-            });
-        }
+        this.parameters = template.Parameters;
 
         let globalUri;
         if(template.Globals && template.Globals.Function && template.Globals.Function.CodeUri) {
@@ -154,10 +142,10 @@ class SAMTemplate {
             return false;
         });
 
-
         const applicationKeys = Object.keys(template.Resources)
             .filter(key => template.Resources[key].Type == 'AWS::Serverless::Application');
         if(applicationKeys && applicationKeys.length > 0) {
+            const subStackRef = [];
             this.substacks = applicationKeys.map(key => {
                 const resource = resources.find(x => x.LogicalResourceId == key);
                 let substackName = '';
@@ -169,9 +157,72 @@ class SAMTemplate {
                 retval.events.on('template-update', () => {
                     self.events.emit('template-update', self);
                 });
+                subStackRef.push({
+                    declaration: template.Resources[key],
+                    template: retval
+                });
                 return retval;
             });
-            await Promise.all(this.substacks.map(x => x.reload()));
+            await Promise.all(this.substacks.map(async x => {
+                await x.reload();
+                logger.debug('Substack params', x);
+                if(x.parameters) {
+                    Object.keys(x.parameters).forEach(key => {
+                        const p = x.parameters[key];
+                        logger.debug(JSON.stringify(p));
+                        if(!p.Default && p.Type && p.Type.indexOf('AWS::SSM::Parameter::Value') != 0) {
+                            return;
+                        }
+
+                        // Check if parent stack has this parameter passed in
+                        const stack = subStackRef.find(y => y.template == x);
+                        const subParams = stack?.declaration?.Properties?.Parameters;
+                        if(subParams && subParams[key]) {
+                            return;
+                        }
+
+                        // Add parameters to parent stack
+                        if(!this.parameters[`SubStack${key}`]) {
+                            this.parameters[`SubStack${key}`] = {
+                                Type: 'String',
+                                Default: p.Default
+                            };
+                        }
+                        subParams[key] = { Ref: `SubStack${key}`};
+                    });
+                }
+            }));
+        }
+
+        if(template.Parameters && !this.isSubstack) {
+            logger.warn('environment aware turned on');
+            const environments = this.samconfig.package && this.samconfig.environments? this.samconfig.environments.split(',') : [this.samconfig.environment];
+            this.templateConfigurations = environments.map(env => {
+                const retval = {
+                    Parameters: {},
+                    Tags: {
+                        "environment": env
+                    }
+                };
+                const envAware = this.samconfig.env_aware == 'true' || this.samconfig.env_aware == true;
+                logger.debug('envAware', envAware);
+                Object.keys(template.Parameters)
+                    .forEach(key => {
+                        if(!template.Parameters[key].Default) {
+                            return;
+                        }
+                        retval.Parameters[key] = template.Parameters[key].Default;
+                        if(envAware) {
+                            retval.Parameters[key] = retval.Parameters[key]
+                                .replace(/\<EnvironmentName\>/g, env)
+                                .replace(/\<DevStack\>/g, this.samconfig.dev_stack? this.samconfig.dev_stack : '');
+                        }
+                    });
+                logger.debug('Writing config for', env);
+                writeFileSync(resolve(this.buildRoot, `template-${env}.config`), JSON.stringify(retval, undefined, '  '));
+                return retval;
+            });
+            logger.debug('templateConfigurations', this.templateConfigurations);
         }
 
         if(!this.compiledDirectories) {
@@ -302,7 +353,6 @@ class SAMTemplate {
         }
 
         console.log('samtsc: Writing file', buildPath)
-        this.parameters = template.Parameters;
         this.fixGlobalApiPermissions(template);
         this.mergeGlobalPolicies(template);
         writeFileSync(buildPath, yaml.dump(template, { schema: cfSchema.CLOUDFORMATION_SCHEMA}));

@@ -47,6 +47,8 @@ Any value in the samconfig.toml can be overridden by attaching -- before the var
 | --stack_reference_layer stackLayerResourceName | This property leverages the prod dependencies defined in the root package.json to construct the dependencies in the layer.  Installing dependencies at the root also makes those dependencies available for all your lambda functions. | stack_reference_layer = "stackLayerResourceName" |
 | --include_in_builddir | This value is a comma delimted list of directories to copy to the build directory | include_in_builddir = "./path1,./path2" |
 | --s3-bucket-parm | This is the name of a parameter store entry which contains the deployment bucket | s3_bucket_parm = "/deployment/bucket/name" |
+| --package | This flag forces samtsc to package all components for deployment and create cloudformation configuration files which can be used to deploy the cloudformation to multiple environments | N/A |
+| -environments | This flag allows multiple environment cloudformation environment configuration files to be created for deployment pipelines | environments = "test,prod" |
 
 # Developer Stack
 When multiple developers are working on the same stack, it can get challenging if they overwrite each other's changes.  For this purpose, developers can use the file
@@ -150,3 +152,24 @@ Becomes the following parameters:
 - /test/val2 = 'Test 2'
 
 This allows services to access either a single value or multiple values with ease.
+
+# Package
+The "--package" command will automatically construct a dist/cloudformation directory off the root of the project. This directory has many aspects of a typical build directory created by SAM, with the addition of "template-&lt;Environment&gt;.config" files. These files can be passed into cloudformation in order to provide environment specific configurations.
+
+### The following:
+``` !bash
+samtsc --package --environments test,prod
+```
+### Produces the following file structure:
+``` yaml
+dist:
+   cloudformation:
+      template.yaml
+      template-test.config
+      template-prod.config
+      ...
+```
+When putting together CodePipelines, the artifact base directory should reference "dist/cloudformation", collecting all files and subdirectories.
+
+# Nested Stack Architecture
+Nested stacks which use SSM parameter references have their properties pulled to the parent stack and set as new parameters which get passed to the substack. This allows these parameters to be environment aware (&lt;EnvironmentName&gt;) in how they reference SSM Parameters, while still enabling a single built for multiple environments.
