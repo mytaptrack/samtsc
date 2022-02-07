@@ -114,14 +114,14 @@ class SAMFramework {
         }
 
         if(samconfig.package) {
-            mkdir("dist/cloudformation");
-            copyFolder(resolve(this.buildRoot, ".aws-sam/build"), 'dist/cloudformation');
+            const outputDir = 'dist/cloudformation';
+            mkdir(outputDir);
             const environments = samconfig.package && samconfig.environments? samconfig.environments.split(',') : [samconfig.environment];
             environments.forEach(env => {
                 copyFileSync(resolve(this.buildRoot, `template-${env}.config`), `dist/cloudformation/template-${env}.config`);
             });
 
-            let parameters = `--s3-bucket ${samconfig.s3_bucket} --s3-prefix ${samconfig.s3_prefix}`;
+            let parameters = `--s3-bucket ${samconfig.s3_bucket} --s3-prefix ${samconfig.s3_prefix} --output-template-file ../../${outputDir}/template.yaml`;
             
             logger.info('packaging');
             execSync(`sam package ${parameters}`, { cwd: buildRoot, stdio: 'inherit' });
