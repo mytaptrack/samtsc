@@ -215,7 +215,7 @@ class SAMTemplate {
                         if(!template.Parameters[key].Default) {
                             return;
                         }
-                        retval.Parameters[key] = template.Parameters[key].Default;
+                        retval.Parameters[key] = template.Parameters[key].Default.toString();
                         if(envAware) {
                             retval.Parameters[key] = retval.Parameters[key]
                                 .replace(/\<EnvironmentName\>/g, env)
