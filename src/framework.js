@@ -115,7 +115,7 @@ class SAMFramework {
 
         if(samconfig.package) {
             const outputDir = 'dist/cloudformation';
-            if(existsSync(outputDir)) {
+            if(!existsSync(outputDir)) {
                 mkdir(outputDir);
             }
             const environments = samconfig.package && samconfig.environments? samconfig.environments.split(',') : [samconfig.environment];
