@@ -47,8 +47,9 @@ Any value in the samconfig.toml can be overridden by attaching -- before the var
 | --stack_reference_layer stackLayerResourceName | This property leverages the prod dependencies defined in the root package.json to construct the dependencies in the layer.  Installing dependencies at the root also makes those dependencies available for all your lambda functions. | stack_reference_layer = "stackLayerResourceName" |
 | --include_in_builddir | This value is a comma delimted list of directories to copy to the build directory | include_in_builddir = "./path1,./path2" |
 | --s3-bucket-parm | This is the name of a parameter store entry which contains the deployment bucket | s3_bucket_parm = "/deployment/bucket/name" |
-| --package | This flag forces samtsc to package all components for deployment and create cloudformation configuration files which can be used to deploy the cloudformation to multiple environments | N/A |
-| -environments | This flag allows multiple environment cloudformation environment configuration files to be created for deployment pipelines | environments = "test,prod" |
+| --package | This flag forces samtsc to package all components for deployment and create cloudformation configuration files which can be used to deploy the cloudformation to multiple environments | |
+| --environments | This flag allows multiple environment cloudformation environment configuration files to be created for deployment pipelines | environments = "test,prod" |
+| --region-postfix | This flag can be used during packaging to allow the region to automatically be attached to the template file name | |
 
 # Developer Stack
 When multiple developers are working on the same stack, it can get challenging if they overwrite each other's changes.  For this purpose, developers can use the file
