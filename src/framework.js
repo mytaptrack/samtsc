@@ -115,9 +115,8 @@ class SAMFramework {
 
         if(samconfig.package) {
             const outputDir = 'dist/cloudformation';
-            if(!existsSync(outputDir)) {
-                mkdir(outputDir);
-            }
+            mkdir(outputDir);
+            
             const environments = samconfig.package && samconfig.environments? samconfig.environments.split(',') : [samconfig.environment];
             environments.forEach(env => {
                 copyFileSync(resolve(this.buildRoot, `template-${env}.config`), `dist/cloudformation/template-${env}.config`);
