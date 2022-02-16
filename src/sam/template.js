@@ -375,53 +375,53 @@ class SAMTemplate {
      * @param {map} template 
      */
     fixGlobalApiPermissions(template) {
-        // Object.keys(template.Resources)
-        // .filter(x => {
-        //     const f = template.Resources[x];
-        //     if(f.Type != 'AWS::Serverless::Function' || !f.Properties || !f.Properties.Events) {
-        //         return;
-        //     }
+        Object.keys(template.Resources)
+        .filter(x => {
+            const f = template.Resources[x];
+            if(f.Type != 'AWS::Serverless::Function' || !f.Properties || !f.Properties.Events) {
+                return;
+            }
 
-        //     if(!Object.values(f.Properties.Events).find(y => {
-        //         return y.Type == 'Api' && y.Properties;
-        //     })) {
-        //         return;
-        //     }
+            if(!Object.values(f.Properties.Events).find(y => {
+                return y.Type == 'Api' && y.Properties;
+            })) {
+                return;
+            }
 
-        //     if(Object.values(template.Resources).find(y => {
-        //         if(y.Type != 'AWS::Lambda::Permission' || !y.Properties) {
-        //             return;
-        //         }
-        //         if(y.Properties.Action != 'lambda:InvokeFunction' || 
-        //             !y.Properties.FunctionName ||
-        //             !(y.Properties.FunctionName.Ref == x || y.Properties.FunctionName.data == x)) {
-        //             return;
-        //         }
-        //         return true;
-        //     })) {
-        //         return;
-        //     }
-        //     return true;
-        // }).forEach(x => {
-        //     let apiResource =  'ServerlessRestApi';
-        //     const f = template.Resources[x];
-        //     const ev = Object.values(f.Properties.Events).find(y => {
-        //         return y.Type == 'Api' && y.Properties && y.Properties.RestApiId;
-        //     });
-        //     if(ev) {
-        //         apiResource = ev.Properties.RestApiId.Ref || ev.Properties.RestApiId.data || apiResource;
-        //     }
-        //     const permissions = {
-        //         Type: 'AWS::Lambda::Permission',
-        //         Properties: {
-        //             Action: 'lambda:InvokeFunction',
-        //             FunctionName: { Ref: x },
-        //             Principal: 'apigateway.amazonaws.com',
-        //             SourceArn: { 'Fn::Sub': "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${" + apiResource + "}/*/*/*" }
-        //         }
-        //     };
-        //     template.Resources[x + 'Permissions' + new Date().getTime().toString()] = permissions;
-        // });
+            if(Object.values(template.Resources).find(y => {
+                if(y.Type != 'AWS::Lambda::Permission' || !y.Properties) {
+                    return;
+                }
+                if(y.Properties.Action != 'lambda:InvokeFunction' || 
+                    !y.Properties.FunctionName ||
+                    !(y.Properties.FunctionName.Ref == x || y.Properties.FunctionName.data == x)) {
+                    return;
+                }
+                return true;
+            })) {
+                return;
+            }
+            return true;
+        }).forEach(x => {
+            let apiResource =  'ServerlessRestApi';
+            const f = template.Resources[x];
+            const ev = Object.values(f.Properties.Events).find(y => {
+                return y.Type == 'Api' && y.Properties && y.Properties.RestApiId;
+            });
+            if(ev) {
+                apiResource = ev.Properties.RestApiId.Ref || ev.Properties.RestApiId.data || apiResource;
+            }
+            const permissions = {
+                Type: 'AWS::Lambda::Permission',
+                Properties: {
+                    Action: 'lambda:InvokeFunction',
+                    FunctionName: { Ref: x },
+                    Principal: 'apigateway.amazonaws.com',
+                    SourceArn: { 'Fn::Sub': "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${" + apiResource + "}/*/*/*" }
+                }
+            };
+            template.Resources[x + 'Permissions' + new Date().getTime().toString()] = permissions;
+        });
     }
 
 
