@@ -93,10 +93,10 @@ class SAMLayer {
         }
 
         let lock;
-        const sourceLockPath = resolve(this.sourcePath, 'package-lock.json');
-        if(existsSync(sourceLockPath)) {
-            lock = JSON.parse(readFileSync(sourceLockPath));
-        }
+        // const sourceLockPath = resolve(this.sourcePath, 'package-lock.json');
+        // if(existsSync(sourceLockPath)) {
+        //     lock = JSON.parse(readFileSync(sourceLockPath));
+        // }
 
         if(this.name == this.samconfig.stack_reference_layer && this.sourcePath != '.') {
             logger.info('Constructing combined dependencies');
@@ -193,17 +193,25 @@ class SAMLayer {
                 }
 
                 let refPath = val.slice(5);
+                logger.debug('refPath', refPath);
                 
                 const packFolder = this.sourcePath == '.'? this.path + '/' + (this.copyToNodeJs? 'nodejs/' : '') : pckFolder;
                 const abPath = resolve(packFolder, refPath);
                 if(abPath.startsWith(process.cwd())) {
-                    refPath = resolve(nodejsPath, refPath);
+                    const original = refPath;
+                    //refPath = relative(nodejsPath, abPath);
+
+                    logger.debug('Resolving file path', original, nodejsPath, abPath, refPath);
                 } else {
                     refPath = abPath;
+                    logger.debug('Using absosolute file path', refPath);
                 }
                 pckCopy.dependencies[k] = 'file:' + refPath;
                 if(lock) {
+                    logger.debug('Setting version');
                     lock.dependencies[k].version = 'file:' + refPath;
+                    lock.packages[""].dependencies[k] = 'file:' + abPath;
+                    // lock.packages[`node_modules/${k}`].resolved = refPath;
                 }
             });
         }
@@ -212,7 +220,7 @@ class SAMLayer {
             const outputPath = resolve(nodejsPath, 'package-lock.json');
             writeFileSync(outputPath, JSON.stringify(lock, undefined, 2));
             if(pckCopy.dependencies && Object.keys(this.pck.dependencies).length > 0) {
-                execSync('npm ci --only=prod', { cwd: nodejsPath, stdio: 'inherit' });
+                execSync('npm i --only=prod', { cwd: nodejsPath, stdio: 'inherit' });
             }
         } else {
             if(pckCopy.dependencies && Object.keys(this.pck.dependencies).length > 0) {
