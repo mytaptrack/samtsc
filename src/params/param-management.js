@@ -192,20 +192,21 @@ async function deleteParamTree(obj, pathRoot, samconfig) {
     }));
 }
 
-async function writeToSSM(updates, ssmConfig, pathRoot, cleanUp, samconfig) {
+async function writeToSSM(updates, ssmConfig, pathRoot, cleanUp, force, samconfig) {
     const ssm = new aws.SSM({ region: samconfig.region });
-    await Promise.all(Object.keys(updates).map(async objKey => {
+    for(let objKey of Object.keys(updates)) {
         const key = objKey == 'env'? samconfig.environment : objKey;
 
         logger.debug('Evaluating path', key);
 
-        if(!_.isEqual(updates[objKey], ssmConfig? ssmConfig[key] : undefined)) {
+        if(force || !_.isEqual(updates[objKey], ssmConfig? ssmConfig[key] : undefined)) {
             if(Array.isArray(updates[objKey]) || typeof updates[objKey] == 'string' || Object.keys(updates[objKey]).length == 0) {
-                logger.debug('Writing value for ', key, updates[objKey]);
+                const isArray = Array.isArray(updates[objKey]);
+                logger.debug('Writing value for ', key, updates[objKey], 'isArray', isArray);
                 await ssm.putParameter({
                     Name: `${pathRoot}${key}`,
-                    Value: Array.isArray(updates[objKey])? updates[objKey] : updates[objKey].toString(),
-                    Type: Array.isArray(updates[objKey])? 'StringList' : 'String',
+                    Value: isArray? updates[objKey].join(',') : updates[objKey].toString(),
+                    Type: isArray? 'StringList' : 'String',
                     Overwrite: true
                 }).promise();
             } else {
@@ -223,12 +224,12 @@ async function writeToSSM(updates, ssmConfig, pathRoot, cleanUp, samconfig) {
                 } else {
                     logger.warn('Object larger than 4 kb, skipping writing rollup');
                 }
-                await writeToSSM(updates[objKey], ssmConfig? ssmConfig[key] : undefined, `${pathRoot}${key}/`, cleanUp, samconfig);
+                await writeToSSM(updates[objKey], ssmConfig? ssmConfig[key] : undefined, `${pathRoot}${key}/`, cleanUp, force, samconfig);
             }
         } else {
             var i = 0;
         }
-    }));
+    }
 
     if(ssmConfig && cleanUp) {
         await Promise.all(Object.keys(ssmConfig).map(async key => {
@@ -251,7 +252,9 @@ async function mergeFilesWithEnv(samconfig) {
     logger.debug('Getting ssm params');
     const ssmConfig = await ssmParamsToObj(samconfig);
     const ssmClone = _.cloneDeep(ssmConfig);
-    const clean = samconfig.params_clean == 'true'
+    const clean = samconfig.params_clean == 'true';
+    const force = samconfig.force;
+    console.log('Force', samconfig.force);
     const paramKeys = samconfig.params_keys? samconfig.params_keys.split(',') : undefined;
     if(paramKeys && clean) {
         logger.warn('Cleaning extra parameters');
@@ -279,7 +282,7 @@ async function mergeFilesWithEnv(samconfig) {
 
     const results = _.mergeWith(ssmClone, _.cloneDeep(localConfig));
 
-    await writeToSSM(results, ssmConfig, '/', clean, samconfig);
+    await writeToSSM(results, ssmConfig, '/', clean, force, samconfig);
 }
 
 module.exports.ssmParamsToObj = ssmParamsToObj;

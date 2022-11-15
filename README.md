@@ -121,6 +121,7 @@ This allows teams to manage parameters in source control for integrations and ma
 | no | params_dir | --params-dir | The output directory for the parameters file to be extracted to. Output file will be named params_${environment name}.yml |
 | no | params_keys | --params-keys | Use this option to specify a comma delimited list of keys to be extracted and imported. The when /env/ is used, it will be modified to the environment name being exported or imported into.
 | no | params_clean | --params-clean | Set this value to true in order to remove keys previously set but no longer present in the configuration. This will also remove values created by other sources, so only use it if you know what you're doing.
+| no | | --force | This flag is used when working with the "--param put" operation, and forces the setting of all parameter store values, even if they match |
 
 
 ## Extracting parameters
