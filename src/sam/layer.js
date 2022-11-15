@@ -105,6 +105,12 @@ class SAMLayer {
                 lock = null;
                 Object.keys(rootPck.dependencies).forEach(k => {
                     let val = rootPck.dependencies[k];
+                    if(val.version) {
+                        val = val.version;
+                    }
+                    if(!val) {
+                        return;
+                    }
                     if(!val.startsWith('file:')) {
                         this.pck.dependencies[k] = val;
                         return;

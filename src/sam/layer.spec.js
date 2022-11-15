@@ -49,7 +49,7 @@ describe('Unit: SAMLayer', () => {
             expect(layer.sourcePath).toBe('src/layer');
             expect(layer.libs.length).toBe(0);
             expect(execSync).toBeCalledTimes(0);
-            expect(writeFileSync).toBeCalledTimes(2);
+            expect(writeFileSync).toBeCalledTimes(1);
         });
         test('Layer w/ library', () => {
             const { SAMLayer } = require('./layer');
@@ -77,7 +77,7 @@ describe('Unit: SAMLayer', () => {
             expect(layer.sourcePath).toBe('src/layer');
             expect(layer.libs.length).toBe(1);
             expect(layer.libs[0].path).toBe('src/library');
-            expect(writeFileSync).toBeCalledTimes(2);
+            expect(writeFileSync).toBeCalledTimes(1);
         });
         test('Stack Layer w/ library', () => {
             const { SAMLayer } = require('./layer');
@@ -111,9 +111,7 @@ describe('Unit: SAMLayer', () => {
             readFileSync.mockReturnValueOnce(JSON.stringify({}));
             const layer = new SAMLayer('src-layer', { ContentUri: 'src/layer' }, { BuildMethod: 'nodejs12.x'}, 'test-stack', '.', { debug: true, stack_reference_layer: 'src-layer' });
             expect(layer.sourcePath).toBe('src/layer');
-            expect(layer.libs.length).toBe(2);
-            expect(layer.libs[0].path).toBe('src/library');
-            expect(layer.libs[1].path).toBe('src/library2');
+            expect(layer.libs.length).toBe(0);
             expect(writeFileSync).toBeCalledTimes(1);
         });
         test('Root Layer w/ library', () => {
@@ -142,7 +140,7 @@ describe('Unit: SAMLayer', () => {
             expect(layer.sourcePath).toBe('.');
             expect(layer.libs.length).toBe(1);
             expect(layer.libs[0].path).toBe('src/library');
-            expect(writeFileSync).toBeCalledTimes(2);
+            expect(writeFileSync).toBeCalledTimes(1);
         });
 
         test('Root Layer w/ non-standard library', () => {
@@ -172,7 +170,7 @@ describe('Unit: SAMLayer', () => {
             expect(layer.sourcePath).toBe('.');
             expect(layer.libs.length).toBe(1);
             expect(layer.libs[0].path).toBe('api/library');
-            expect(writeFileSync).toBeCalledTimes(2);
+            expect(writeFileSync).toBeCalledTimes(1);
         });
     });
 });
