@@ -84,10 +84,12 @@ class SAMConfig {
             const firstIndex = right.indexOf('\"');
             const lastIndex = right.lastIndexOf('\"');
             this[left] = right.slice(firstIndex + 1, lastIndex);
-            console.log('toml:', left, this[left]);
         });
         Object.keys(buildFlags).forEach(key => {
             self[key] = buildFlags[key];
+        });
+        Object.keys(this).forEach(key => {
+            console.log('toml:', key, this[key]);
         });
         if(!this.s3_bucket && this.s3_bucket_parm) {
             logger.info('Loading bucket from parameter', this.region, buildFlags);
