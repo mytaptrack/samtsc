@@ -363,10 +363,11 @@ class SAMTemplate {
         console.log('samtsc: Writing file', buildPath)
         this.fixGlobalApiPermissions(template);
         this.mergeGlobalPolicies(template);
+        let templateString = yaml.dump(template, { schema: cfSchema.CLOUDFORMATION_SCHEMA});
         if(this.samconfig.region) {
-            template = template.replace(/https:\/\/s3.[a-z\-0-9]+.amazonaws.com/g, `https://s3.${this.samconfig.region}.amazonaws.com`);
+            templateString = templateString.replace(/https:\/\/s3.[a-z\-0-9]+.amazonaws.com/g, `https://s3.${this.samconfig.region}.amazonaws.com`);
         }
-        writeFileSync(buildPath, yaml.dump(template, { schema: cfSchema.CLOUDFORMATION_SCHEMA}));
+        writeFileSync(buildPath, templateString);
         
         this.events.emit('template-update', this);
     }
