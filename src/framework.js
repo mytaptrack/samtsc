@@ -128,8 +128,14 @@ class SAMFramework {
             }
             let parameters = `--s3-bucket ${samconfig.s3_bucket} --s3-prefix ${samconfig.s3_prefix} --output-template-file ../../${outputDir}/template${postfix}.yaml`;
             
+            if(samconfig.region) {
+                parameters += ` --region ${samconfig.region}`;
+            }
+
             logger.info('packaging');
-            execSync(`sam package ${parameters}`, { cwd: buildRoot, stdio: 'inherit' });
+            const execCommand = `sam package ${parameters}`;
+            logger.debug(execCommand);
+            execSync(execCommand, { cwd: buildRoot, stdio: 'inherit' });
         }
     }
 

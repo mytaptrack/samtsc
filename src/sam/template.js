@@ -360,10 +360,11 @@ class SAMTemplate {
             template.Parameters.DevStackName.Default = this.samconfig.dev_stack;
         }
 
-        console.log('samtsc: Writing file', buildPath)
+        logger.info('Writing file', buildPath)
         this.fixGlobalApiPermissions(template);
         this.mergeGlobalPolicies(template);
-        writeFileSync(buildPath, yaml.dump(template, { schema: cfSchema.CLOUDFORMATION_SCHEMA}));
+        let templateString = yaml.dump(template, { schema: cfSchema.CLOUDFORMATION_SCHEMA});
+        writeFileSync(buildPath, templateString);
         
         this.events.emit('template-update', this);
     }
