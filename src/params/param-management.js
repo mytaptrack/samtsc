@@ -209,6 +209,7 @@ async function writeToSSM(updates, ssmConfig, pathRoot, cleanUp, force, samconfi
                     Type: isArray? 'StringList' : 'String',
                     Overwrite: true
                 }).promise();
+                logger.debug('Value written', pathRoot, key);
             } else {
                 logger.debug('Cascading key', key);
                 const body = JSON.stringify(updates[objKey]);
