@@ -106,35 +106,6 @@ class SAMConfig {
             }
         }
 
-        if(stackeryConfig) {
-            this.base_stack = stackeryConfig.stackName;
-            this.environment = stackeryConfig.environmentName;
-            this.region = stackeryConfig.region;
-            this.s3_bucket = stackeryConfig.s3BucketName;
-            this.stack_name = stackeryConfig.cloudFormationStackName;
-
-            if(existsSync(`.stackery/${stackeryConfig.templatePath}`)) {
-                const content = readFileSync(`.stackery/${stackeryConfig.templatePath}`).toString();
-                const yaml = require('js-yaml');
-                const cfSchema = require('cloudformation-js-yaml-schema');
-                
-                try {
-                    const stackeryYaml = yaml.load(content, {
-                        schema: cfSchema.CLOUDFORMATION_SCHEMA
-                    });
-        
-                    if(stackeryYaml && stackeryYaml.Outputs && stackeryYaml.Outputs.DeploymentHistoryTag) {
-                        this.marker_tag = stackeryYaml.Outputs.DeploymentHistoryTag.Value;
-                    } else {
-                        console.log('samtsc: yaml error', content);
-                    }
-                } catch (err) {
-                    console.error(err);
-                    console.log(content);
-                }
-            }
-        }
-
         if(this.base_stack && this.environment) {
             this.stack_name = `${this.base_stack}-${this.environment}`;
         } else {
@@ -149,6 +120,10 @@ class SAMConfig {
                 this.stack_name = `${this.stack_name}-${addToStack}`;
                 logger.warn('Setting up developer isolated stack', this.stack_name);
             }
+        }
+
+        if(this.region) {
+            process.env.AWS_REGION = this.region;
         }
     }
 }
