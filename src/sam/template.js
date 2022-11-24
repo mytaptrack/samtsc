@@ -360,13 +360,10 @@ class SAMTemplate {
             template.Parameters.DevStackName.Default = this.samconfig.dev_stack;
         }
 
-        console.log('samtsc: Writing file', buildPath)
+        logger.info('Writing file', buildPath)
         this.fixGlobalApiPermissions(template);
         this.mergeGlobalPolicies(template);
         let templateString = yaml.dump(template, { schema: cfSchema.CLOUDFORMATION_SCHEMA});
-        if(this.samconfig.region) {
-            templateString = templateString.replace(/https:\/\/s3.[a-z\-0-9]+.amazonaws.com/g, `https://s3.${this.samconfig.region}.amazonaws.com`);
-        }
         writeFileSync(buildPath, templateString);
         
         this.events.emit('template-update', this);
