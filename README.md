@@ -175,3 +175,31 @@ When putting together CodePipelines, the artifact base directory should referenc
 
 # Nested Stack Architecture
 Nested stacks which use SSM parameter references have their properties pulled to the parent stack and set as new parameters which get passed to the substack. This allows these parameters to be environment aware (&lt;EnvironmentName&gt;) in how they reference SSM Parameters, while still enabling a single built for multiple environments.
+
+# AWS AppSync Support
+Samtsc now supports AppSync development, both on deployment as well as real-time syncing between local code and AppSync Schema and AppSync Functions.
+
+## Schema Advanced Feature
+Samtsc will leverage the cloudformation template to find the schema file for your AppSync endpoint. In that file you can organize your type content by leveraging "#include" syntax
+
+### Example
+ItemTypes.graphql
+``` graphql
+type ItemType1 {
+
+}
+```
+
+types.graphql
+``` graphql
+type CoreTypes {
+
+}
+
+#include "./ItemTypes.graphql"
+```
+
+This content will be merged and placed in the transformed cloudformation stack. If you are using the continual deployment capabilities for development, the schema files will be merged and pushed up to AppSync within a second.
+
+## AppSync Functions
+With appsync functions, you can now specify .ts file extensions. If specified, samtsc will compile these files, then place the compiled code in the cloudformation template. This allows you to import type definitions, but since AppSync functions don't allow other libraries, all functional code will need to be in the file which the appsync function is pointing at.

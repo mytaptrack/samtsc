@@ -51,11 +51,11 @@ class SAMFunction {
         }
         try {
             const self = this;
-            console.log('samtsc: Deploying function', this.name);
+            logger.info('Deploying function', this.name);
             if(!this.functionName) {
                 const resource = this.stackResources.find(x => x.LogicalResourceId == self.name);
                 if(!resource) {
-                    console.log('samtsc: Could not find function name');
+                    logger.error('Could not find function name');
                     throw new Error('No function name found');
                 }
                 this.functionName = resource.PhysicalResourceId;
@@ -65,10 +65,10 @@ class SAMFunction {
                 ZipFile: zipContents
             }).promise();
             this.events.emit('deploy-complete');
-            
-            console.log('samtsc: Function deployment complete', this.name);
+
+            logger.info('Function deployment complete', this.name);
         } catch (err) {
-            console.log('samtsc: Function deployment FAILED', err);
+            logger.error('Function deployment FAILED', err);
         }
     }
 }

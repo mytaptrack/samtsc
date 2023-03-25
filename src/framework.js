@@ -80,13 +80,21 @@ class SAMFramework {
 
         if(!samconfig.build_only && !samconfig.package && !samconfig.deploy_only) {
             const self = this;
-            this.template.events.on('layer-change', (source) => { self.templateUpdated(source) });
-            this.template.events.on('template-update', (source) => { self.templateUpdated(); } )
+            this.template.events.on('layer-change', (source) => { 
+                logger.debug('Layer Updated', source);
+                self.templateUpdated(source);
+            });
+            this.template.events.on('template-update', (source) => { 
+                logger.debug('Template Updated', source);
+                self.templateUpdated(); 
+            } )
     
             this.watcher = watch('.', { recursive: true }, (event, filename) => {
-                this.template.fileEvent(filename);
+                logger.debug('Watcher file event', filename);
+                const ignore = this.template.fileEvent(filename);
 
                 if(samconfig.include_in_builddir) {
+                    logger.debug('Evaluating include files');
                     let modified = false;
                     samconfig.include_in_builddir.forEach(x => {
                         if(!filename.startsWith(x)) {
@@ -106,7 +114,8 @@ class SAMFramework {
                         modified = true;
                     });
 
-                    if(modified) {
+                    logger.debug('Evaluating template reload', modified, ignore);
+                    if(modified && !ignore) {
                         self.templateUpdated();
                     }
                 }

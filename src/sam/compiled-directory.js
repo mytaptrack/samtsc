@@ -28,11 +28,13 @@ function buildPackageJson(source, buildRoot) {
 }
 
 class SAMCompiledDirectory {
-    constructor(dirPath, samconfig, buildRoot, tempDir = '.build/tmp') {
+    constructor(dirPath, samconfig, buildRoot, tempDir = '.build/tmp', moduleType) {
         this.path = dirPath;
         this.samconfig = samconfig;
+        this.moduleType = moduleType;
         this.buildRoot = buildRoot;
         this.tempDir = tempDir;
+        this.neverPackage = false;
         this.events = new EventEmitter();
         logger.success('Deployment Library ', dirPath);
         const parent = findTsConfigDir(dirPath);
@@ -48,7 +50,10 @@ class SAMCompiledDirectory {
                 throw new Error('No parent tsconfig.json found')
             }
             logger.warn('Building tsconfig.json for', dirPath);
-            writeFileSync(`${this.path}/tsconfig.json`, JSON.stringify({ extends: relative(dirPath, parent || '.') + '/tsconfig.json' }, undefined, 2));
+            writeFileSync(`${this.path}/tsconfig.json`, JSON.stringify({ 
+                extends: relative(dirPath, parent || '.') + '/tsconfig.json',
+                compilerOptions: this.moduleType ? { module: this.moduleType } : undefined
+            }, undefined, 2));
         }
         if(!existsSync(`${dirPath}/package.json`)) {
             logger.warn('Building package.json for', dirPath);
@@ -166,9 +171,11 @@ class SAMCompiledDirectory {
                 buildPackageJson(this.path, this.buildRoot);
             }
             writeCacheFile(this.path);
-            this.events.emit('build-complete');
 
-            if(!skipDeploy) {
+            const buildDir = `${this.buildRoot}/${this.path}`;
+            this.events.emit('build-complete', buildDir);
+
+            if(!skipDeploy && !this.neverPackage) {
                 if(filePath) {
                     this.package(filePath);
                 }

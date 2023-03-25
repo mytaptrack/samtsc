@@ -8,7 +8,10 @@ const { EventEmitter } = require('events');
 const { SAMLayer } = require('./layer');
 const { SAMFunction } = require('./function');
 const { SAMCompiledDirectory } = require('./compiled-directory');
+const { AppSyncFunctionConfiguration  } = require('./appsync-function');
 const { writeCacheFile, folderUpdated } = require('../tsc-tools');
+const { AppSyncSchema } = require('./appsync-schema');
+const { version } = require('os');
 
 function filterRefs(array) {
     if(!array) {
@@ -39,10 +42,13 @@ class SAMTemplate {
     }
 
     fileEvent(filePath) {
+        var ignoreReload = false;
+        logger.debug('File event', filePath);
         if(!filePath) {
             return;
         }
         if(this.path == filePath && folderUpdated(this.path)) {
+            logger.info('Template file changed', this.path);
             this.reload();
             writeCacheFile(this.path, true);
         }
@@ -54,7 +60,29 @@ class SAMTemplate {
             Object.values(this.compiledDirectories).forEach(d => {
                 const subpath = relative(d.path, filePath);
                 if(!subpath.startsWith('..')) {
+                    logger.debug('Compiled Directory Changed', subpath);
                     d.fileEvent(subpath);
+                }
+            });
+        }
+        if(this.appsyncFunctions && !filePath.startsWith(this.buildRoot)) {
+            const fullPath = resolve(filePath);
+            this.appsyncFunctions.forEach(f => {
+                logger.debug('Appsync Function Check', f.source, fullPath);
+                if(f.source == fullPath) {
+                    logger.debug('Appsync Function Changed', filePath);
+                    f.fileEvent(filePath);
+                    ignoreReload = true;
+                }
+            });
+        }
+        if(this.appsyncSchemas) {
+            const fullPath = resolve(filePath);
+            this.appsyncSchemas.forEach(f => {
+                if(f.paths.find(p => p == fullPath)) {
+                    logger.debug('Appsync Schema Changed', filePath);
+                    f.fileEvent(filePath);
+                    ignoreReload = true;
                 }
             });
         }
@@ -75,6 +103,7 @@ class SAMTemplate {
                 }
             });
         }
+        return ignoreReload;
     }
 
     async reload() {
@@ -114,8 +143,68 @@ class SAMTemplate {
         if(template.Globals && template.Globals.Function && template.Globals.Function.CodeUri) {
             globalUri = template.Globals.Function.CodeUri;
         }
-
         const self = this;
+
+        if(!this.compiledDirectories) {
+            this.compiledDirectories = {};
+        }
+
+        const appsyncFunctionConfigKeys = Object.keys(template.Resources)
+            .filter(key => template.Resources[key].Type == 'AWS::AppSync::FunctionConfiguration');
+        if(!this.appsyncFunctions) {
+            this.appsyncFunctions = [];
+        }
+        const appsync = resources.find(resource => resource.ResourceType == 'AWS::AppSync::GraphQLApi');
+        let appsyncId = '';
+        if(appsync) {
+            appsyncId = appsync.PhysicalResourceId.slice(appsync.PhysicalResourceId.lastIndexOf('/') + 1);
+            logger.debug('appsync', appsyncId);
+        }
+        appsyncFunctionConfigKeys.forEach(key => {
+            const resource = template.Resources[key];
+            let existing = this.appsyncFunctions.find(x => x.name == key);
+            const cfresource = resources.find(x => x.LogicalResourceId == key);
+
+            if(existing) {
+                existing.setConfig(resource.Properties, cfresource, appsyncId);
+            } else {
+                existing = new AppSyncFunctionConfiguration(key, resource.Properties, self.buildRoot, cfresource, appsyncId, this.samconfig);
+                this.appsyncFunctions.push(existing);
+            }
+
+            if(existing.source?.endsWith('.ts')) {
+                const dirPath = relative('.', resolve(this.stackDir, existing.source, '..'));
+                let compDir = this.compiledDirectories[dirPath];
+                if(!compDir) {
+                    logger.info('Constructing directory to compile', dirPath);
+                    compDir = new SAMCompiledDirectory(dirPath, this.samconfig, this.buildRoot, '.build/tmp', 'ESNext');
+                    compDir.neverPackage = true;
+                    compDir.installAtLeastOnce();
+                    compDir.build(undefined, true);
+                    this.compiledDirectories[dirPath] = compDir;
+                }
+                existing.setCompDir(compDir);
+            }
+        });
+
+        const appsyncSchemaKeys = Object.keys(template.Resources)
+            .filter(key => template.Resources[key].Type == 'AWS::AppSync::GraphQLSchema');
+        if(!this.appsyncSchemas) {
+            this.appsyncSchemas = [];
+        }
+        appsyncSchemaKeys.forEach(key => {
+            const resource = template.Resources[key];
+            const existing = this.appsyncFunctions.find(x => x.name == key);
+            const cfresource = resources.find(x => x.LogicalResourceId == key);
+            
+            if(existing) {
+                existing.setConfig(resource.Properties, cfresource, appsyncId);
+            } else {
+                const appsyncFunc = new AppSyncSchema(key, resource.Properties, self.buildRoot, cfresource, appsyncId, this.samconfig);
+                this.appsyncSchemas.push(appsyncFunc);
+            }
+        });
+
         const layerKeys = Object.keys(template.Resources)
             .filter(key => template.Resources[key].Type == 'AWS::Serverless::LayerVersion');
         if(!this.layers) {
@@ -233,9 +322,6 @@ class SAMTemplate {
             logger.debug('templateConfigurations', this.templateConfigurations);
         }
 
-        if(!this.compiledDirectories) {
-            this.compiledDirectories = {};
-        }
         if(!this.functions) {
             this.functions = [];
         }
@@ -363,7 +449,16 @@ class SAMTemplate {
         logger.info('Writing file', buildPath)
         this.fixGlobalApiPermissions(template);
         this.mergeGlobalPolicies(template);
-        let templateString = yaml.dump(template, { schema: cfSchema.CLOUDFORMATION_SCHEMA});
+        let templateString = yaml.dump(template, { schema: cfSchema.CLOUDFORMATION_SCHEMA})
+        const versionMatches = templateString.match(/\:\W*\d+\.\d+\.\d+\W*(?<=\n)/g);
+        if(versionMatches) {
+            logger.warn("Replacing non-string version numbers with strings");
+            versionMatches.forEach(m => {
+                const val = m.match(/\d+\.\d+\.\d+/)[0];
+                const updated = m.replace(val, `"${val}"`);
+                templateString = templateString.replace(m, updated);
+            });
+        }
         writeFileSync(buildPath, templateString);
         
         this.events.emit('template-update', this);
