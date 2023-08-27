@@ -2,7 +2,8 @@ const yaml = require('js-yaml');
 const { existsSync, writeFileSync, readFileSync, unlinkSync, mkdir } = require('../file-system');
 const { relative, resolve } = require('path');
 const cfSchema = require('cloudformation-js-yaml-schema');
-const aws = require('aws-sdk');
+const aws = require('@aws-sdk/client-ssm');
+const awscf = require('@aws-sdk/client-cloudformation')
 const { logger } = require('../logger');
 const { EventEmitter } = require('events');
 const { SAMLayer } = require('./layer');
@@ -32,7 +33,7 @@ class SAMTemplate {
         
         this.events = new EventEmitter();
         this.ssm = new aws.SSM({ region: samconfig.region });
-        this.cf = new aws.CloudFormation({ region: samconfig.region });
+        this.cf = new awscf.CloudFormation({ region: samconfig.region });
     }
 
     cleanup() {

@@ -1,4 +1,4 @@
-const aws = require('aws-sdk');
+const aws = require('@aws-sdk/client-lambda');
 const { logger } = require('../logger');
 const { EventEmitter } = require('events');
 

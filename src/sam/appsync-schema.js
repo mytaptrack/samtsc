@@ -1,4 +1,5 @@
-const aws = require('aws-sdk');
+const aws = require('@aws-sdk/client-appsync');
+
 const { mkdir, existsSync, writeFileSync, readFileSync } = require('../file-system');
 const { relative, resolve } = require('path');
 const { logger } = require('../logger');

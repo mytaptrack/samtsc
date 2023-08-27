@@ -1,4 +1,4 @@
-const aws = require('aws-sdk');
+const aws = require('@aws-sdk/client-ssm');
 const yaml = require('yaml');
 const fs = require('../file-system');
 const path = require('path');
@@ -84,7 +84,7 @@ async function ssmParamsToObj(samconfig) {
     do {
         const awsResults = await ssm.describeParameters( {
             NextToken: token
-        }).promise();
+        });
         token = awsResults.NextToken;
         parameters.push(...awsResults.Parameters)
     } while (token);
@@ -99,7 +99,7 @@ async function ssmParamsToObj(samconfig) {
         const parts = x.Name.slice(1).split('/');
         const param = await ssm.getParameter({
             Name: x.Name
-        }).promise();
+        });
         setKey(retval, parts, param.Parameter.Value);
     }));
 
@@ -185,7 +185,7 @@ async function deleteParamTree(obj, pathRoot, samconfig) {
     await Promise.all(Object.keys(obj).map(async key => {
         await ssm.deleteParameter({
             Name: `${pathRoot}${key}`
-        }).promise();
+        });
         if(Object.keys(obj[key]).length != 0) {
             await deleteParamTree(obj[key], `${pathRoot}${key}/`, samconfig);
         }
@@ -208,7 +208,7 @@ async function writeToSSM(updates, ssmConfig, pathRoot, cleanUp, force, samconfi
                     Value: isArray? updates[objKey].join(',') : updates[objKey].toString(),
                     Type: isArray? 'StringList' : 'String',
                     Overwrite: true
-                }).promise();
+                });
                 logger.debug('Value written', pathRoot, key);
             } else {
                 logger.debug('Cascading key', key);
@@ -221,7 +221,7 @@ async function writeToSSM(updates, ssmConfig, pathRoot, cleanUp, force, samconfi
                         Overwrite: true
                     };
                     logger.debug('Writing rollup', params);
-                    await ssm.putParameter(params).promise();
+                    await ssm.putParameter(params);
                 } else {
                     logger.warn('Object larger than 4 kb, skipping writing rollup');
                 }
@@ -237,7 +237,7 @@ async function writeToSSM(updates, ssmConfig, pathRoot, cleanUp, force, samconfi
             if(updates[key] == undefined && ssmConfig[key] != undefined) {
                 await ssm.deleteParameter({
                     Name: `${pathRoot}${key}`
-                }).promise();
+                });
                 if(Object.keys(ssmConfig[key]).length != 0) {
                     await deleteParamTree(ssmConfig[key], `${pathRoot}${key}/`, samconfig);
                 }

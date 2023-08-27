@@ -18,8 +18,11 @@
         "coveralls": "jest --coverage && cat ./tests/coverage/lcov.info | coveralls"
     },
     "dependencies": {
+        "@aws-sdk/client-appsync": "^3.398.0",
+        "@aws-sdk/client-cloudformation": "^3.398.0",
+        "@aws-sdk/client-lambda": "^3.398.0",
+        "@aws-sdk/client-ssm": "^3.398.0",
         "archiver": "^5.3.1",
-        "aws-sdk": "^2.1341.0",
         "cloudformation-js-yaml-schema": "^0.4.2",
         "js-yaml": "^4.1.0",
         "lodash": "^4.17.21",

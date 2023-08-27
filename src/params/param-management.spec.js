@@ -1,7 +1,7 @@
 //
 // Remove aws sdk from being used in unit tests
 //
-const aws = require('aws-sdk');
+const aws = require('@aws-sdk/client-ssm');
 
 let paramRetval = [];
 const getParameters = jest.fn();

@@ -226,12 +226,12 @@ class SAMLayer {
             const outputPath = resolve(nodejsPath, 'package-lock.json');
             writeFileSync(outputPath, JSON.stringify(lock, undefined, 2));
             if(pckCopy.dependencies && Object.keys(this.pck.dependencies).length > 0) {
-                execSync('npm i --only=prod', { cwd: nodejsPath, stdio: 'inherit' });
+                execSync('npm i --only=prod --legacy-peer-deps', { cwd: nodejsPath, stdio: 'inherit' });
             }
         } else {
             if(pckCopy.dependencies && Object.keys(this.pck.dependencies).length > 0) {
                 logger.info('samtsc: installing dependencies');
-                execSync('npm i --only=prod', { cwd: nodejsPath, stdio: 'inherit' });
+                execSync('npm i --only=prod --legacy-peer-deps', { cwd: nodejsPath, stdio: 'inherit' });
             }
         }
 

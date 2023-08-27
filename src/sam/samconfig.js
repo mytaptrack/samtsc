@@ -1,7 +1,7 @@
 const { existsSync, readFileSync, writeFileSync } = require('../file-system');
 const { resolve } = require('path');
 const { logger } = require('../logger');
-const { SSM } = require('aws-sdk');
+const { SSM } = require('@aws-sdk/client-ssm');
 
 let stackeryConfig;
 if(process.env.stackery_config) {
