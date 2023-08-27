@@ -63,7 +63,7 @@ class SAMFunction {
             await this.lambda.updateFunctionCode({
                 FunctionName: this.functionName,
                 ZipFile: zipContents
-            }).promise();
+            });
             this.events.emit('deploy-complete');
 
             logger.info('Function deployment complete', this.name);

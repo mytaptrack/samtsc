@@ -97,11 +97,12 @@ class SAMConfig {
             try {
                 const parm = await ssm.getParameter({
                     Name: this.s3_bucket_parm
-                }).promise();
+                });
                 if(parm) {
                     this.s3_bucket = parm.Parameter.Value;
                 }
             } catch (err) {
+                logger.error(err);
                 logger.warn('Bucket param could not be retrieved');
             }
         }

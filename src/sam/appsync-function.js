@@ -86,7 +86,7 @@ class AppSyncFunctionConfiguration {
             functionId: this.resource.PhysicalResourceId.slice(this.resource.PhysicalResourceId.lastIndexOf('/') + 1),
         };
         logger.info('Getting appsync function');
-        this.appsync.getFunction(getParams).promise().then(data => {
+        this.appsync.getFunction(getParams).then(data => {
             logger.info('Function retrieved');
             const conf = data.functionConfiguration;
             const params = {
@@ -102,7 +102,7 @@ class AppSyncFunctionConfiguration {
                 }
             };
             logger.info('Updating appsync function');
-            this.appsync.updateFunction(params).promise().then(() => {
+            this.appsync.updateFunction(params).then(() => {
                 logger.success('Updated appsync function', this.properties.Name);
                 this.updating = false;
             }).catch(err => {

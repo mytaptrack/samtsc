@@ -74,7 +74,7 @@ class AppSyncSchema {
             definition: this.properties.Definition,
         };
         logger.info('Updating appsync schema');
-        this.appsync.startSchemaCreation(params).promise().then((data) => {
+        this.appsync.startSchemaCreation(params).then((data) => {
             this.waitForAppsyncStatus().then(() => {
                 this.updating = false;
             }).catch(err => {
@@ -87,7 +87,7 @@ class AppSyncSchema {
         });
     }
     waitForAppsyncStatus() {
-        return this.appsync.getSchemaCreationStatus({ apiId: this.appsyncId }).promise().then((data) => {
+        return this.appsync.getSchemaCreationStatus({ apiId: this.appsyncId }).then((data) => {
             if(data.status == 'SUCCESS') {
                 logger.success('Updated appsync schema');
                 return;

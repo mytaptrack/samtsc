@@ -122,7 +122,7 @@ class SAMTemplate {
                     const result = await this.cf.listStackResources({
                         StackName: this.stackName,
                         NextToken: nextToken
-                    }).promise();
+                    });
                     nextToken = result.NextToken;
                     if(result.StackResourceSummaries) {
                         resources.push(...result.StackResourceSummaries);
@@ -384,7 +384,7 @@ class SAMTemplate {
             if(paramRefs.length > 0) {
                 const paramResults = await this.ssm.getParameters({
                     Names: paramRefs.map(p => template.Parameters[p].Default)
-                }).promise();
+                });
 
                 paramRefs.forEach(key => {
                     const parm = template.Parameters[key];
